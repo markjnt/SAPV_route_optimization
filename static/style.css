@@ -464,3 +464,31 @@ th {
 .marker-visit-type.hb { background-color: #32CD32; }
 .marker-visit-type.tk { background-color: #1E90FF; }
 .marker-visit-type.neuaufnahme { background-color: #FF4500; }
+
+/* Styles für die Show-Seiten */
+.show-page-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.back-link {
+    margin-bottom: 20px;
+    padding: 0 0 20px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.back-link a {
+    color: #4a5568;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.back-link a:hover {
+    color: #2d3748;
+}

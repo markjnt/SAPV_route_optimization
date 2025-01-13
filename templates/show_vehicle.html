@@ -6,44 +6,46 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="back-link">
-        <a href="{{ url_for('upload_file') }}">← Zurück zum Upload</a>
+    <div class="show-page-container">
+        <div class="back-link">
+            <a href="{{ url_for('upload_file') }}">← Zurück zum Upload</a>
+        </div>
+
+        <h1>Mitarbeiterliste</h1>
+
+        {% if vehicles %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Nr.</th>
+                    <th>Name</th>
+                    <th>Funktion</th>
+                    <th>Startadresse</th>
+                    <th>Stellenumfang</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vehicle in vehicles %}
+                <tr>
+                    <td>{{ vehicle.id }}</td>
+                    <td>{{ vehicle.name }}</td>
+                    <td>
+                        <span class="funktion-line {% if vehicle.funktion == 'Arzt' %}arzt
+                            {% elif vehicle.funktion == 'Pflegekraft' %}pflege
+                            {% elif vehicle.funktion.startswith('Honorararzt') %}honorar
+                            {% endif %}">
+                            {{ vehicle.funktion }}
+                        </span>
+                    </td>
+                    <td>{{ vehicle.start_address }}</td>
+                    <td>{{ vehicle.stellenumfang }} %</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Keine Fahrzeuge gefunden.</p>
+        {% endif %}
     </div>
-
-    <h1>Mitarbeiterliste</h1>
-
-    {% if vehicles %}
-    <table>
-        <thead>
-            <tr>
-                <th>Nr.</th>
-                <th>Name</th>
-                <th>Funktion</th>
-                <th>Startadresse</th>
-                <th>Stellenumfang</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for vehicle in vehicles %}
-            <tr>
-                <td>{{ vehicle.id }}</td>
-                <td>{{ vehicle.name }}</td>
-                <td>
-                    <span class="funktion-line {% if vehicle.funktion == 'Arzt' %}arzt
-                        {% elif vehicle.funktion == 'Pflegekraft' %}pflege
-                        {% elif vehicle.funktion.startswith('Honorararzt') %}honorar
-                        {% endif %}">
-                        {{ vehicle.funktion }}
-                    </span>
-                </td>
-                <td>{{ vehicle.start_address }}</td>
-                <td>{{ vehicle.stellenumfang }} %</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p>Keine Fahrzeuge gefunden.</p>
-    {% endif %}
 </body>
 </html>

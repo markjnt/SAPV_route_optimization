@@ -733,7 +733,7 @@ function updateOptimizedRoutes() {
             const locationDiv = stop.querySelector('[data-lat]');
             unassigned_tk_stops.push({
                 patient: patient,
-                address: stop.querySelector('.patient-info div').textContent,
+                address: stop.querySelector('.address').textContent,
                 visit_type: "TK",
                 location: locationDiv ? {
                     lat: parseFloat(locationDiv.dataset.lat),
@@ -790,9 +790,26 @@ function updateRouteDuration(routeCard, durationHrs = 0) {
 }
 
 function toggleInfo(id) {
-  const popup = document.getElementById(id);
-  popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
+    // Schließe zuerst alle Popups
+    document.querySelectorAll('.info-popup').forEach(popup => {
+        if (popup.id !== id) {
+            popup.style.display = 'none';
+        }
+    });
+
+    // Toggle das gewählte Popup
+    const popup = document.getElementById(id);
+    popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
 }
+
+// Schließe Popups auch beim Klick außerhalb
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.info-popup') && !event.target.closest('.info-icon')) {
+        document.querySelectorAll('.info-popup').forEach(popup => {
+            popup.style.display = 'none';
+        });
+    }
+});
 
 // Funktion zum Laden der gespeicherten Routen
 async function loadSavedRoutes() {

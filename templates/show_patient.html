@@ -6,39 +6,41 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="back-link">
-        <a href="{{ url_for('upload_file') }}">← Zurück zum Upload</a>
+    <div class="show-page-container">
+        <div class="back-link">
+            <a href="{{ url_for('upload_file') }}">← Zurück zum Upload</a>
+        </div>
+
+        <h1>Patientenliste</h1>
+
+        <h2>Termine für {{ weekday }}</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Nr.</th>
+                    <th>Name</th>
+                    <th>Adresse</th>
+                    <th>Uhrzeit/Info {{ weekday }}</th>
+                    <th>Besuchsart</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient in patients %}
+                <tr>
+                    <td>{{ patient.id }}</td>
+                    <td>{{ patient.name }}</td>
+                    <td>{{ patient.address }}</td>
+                    <td>{{ patient.time_info }}</td>
+                    <td>
+                        <span class="visit-badge {% if patient.visit_type == 'HB' %}hb{% elif patient.visit_type == 'TK' %}tk{% elif patient.visit_type == 'Neuaufnahme' %}neuaufnahme{% endif %}">
+                            {{ patient.visit_type }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-
-    <h1>Patientenliste</h1>
-
-    <h2>Termine für {{ weekday }}</h2>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Nr.</th>
-                <th>Name</th>
-                <th>Adresse</th>
-                <th>Uhrzeit/Info {{ weekday }}</th>
-                <th>Besuchsart</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for patient in patients %}
-            <tr>
-                <td>{{ patient.id }}</td>
-                <td>{{ patient.name }}</td>
-                <td>{{ patient.address }}</td>
-                <td>{{ patient.time_info }}</td>
-                <td>
-                    <span class="visit-badge {% if patient.visit_type == 'HB' %}hb{% elif patient.visit_type == 'TK' %}tk{% elif patient.visit_type == 'Neuaufnahme' %}neuaufnahme{% endif %}">
-                        {{ patient.visit_type }}
-                    </span>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </body>
 </html>
