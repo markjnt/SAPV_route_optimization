@@ -226,14 +226,13 @@ document.getElementById('optimizeButton').addEventListener('click', async () => 
             document.getElementById('resultsSection').style.display = 'block';
         } else {
             console.error("Optimierungsfehler:", data.message);
-            alert(data.message || "Fehler bei der Routenoptimierung");
+            window.location.reload();
         }
     } catch (error) {
         console.error("Fetch-Fehler bei /optimize_route:", error);
         alert("Netzwerkfehler bei der Routenoptimierung. Details in der Konsole.");
     }
 });
-
 // Funktion zum Aktualisieren des Wochentags
 async function updateWeekdayDisplay() {
     try {
@@ -285,11 +284,32 @@ document.addEventListener('DOMContentLoaded', function() {
     tomorrowBtn.addEventListener('click', async function() {
         const today = new Date();
         const todayIndex = today.getDay();
-        const tomorrowIndex = (todayIndex + 1) % 7;
+        let tomorrowIndex;
+
+        // Wenn heute Freitag (5), Samstag (6) oder Sonntag (0) ist,
+        // dann setze auf Montag (1)
+        if (todayIndex === 5 || todayIndex === 6 || todayIndex === 0) {
+            tomorrowIndex = 1; // Montag
+        } else {
+            tomorrowIndex = (todayIndex + 1) % 7;
+        }
+
         weekdaySelect.value = weekdays[tomorrowIndex];
         // Trigger 'change'
         weekdaySelect.dispatchEvent(new Event('change'));
     });
+
+    // Flash Message mit Timeout
+    const flashMessage = document.getElementById('flash-message');
+    if (flashMessage) {
+        setTimeout(() => {
+            flashMessage.style.opacity = '0';
+            flashMessage.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => {
+                flashMessage.remove();
+            }, 500);
+        }, 10000);
+    }
 });
 
 // Optimierte Routen anzeigen

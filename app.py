@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, flash
 from google.maps import routeoptimization_v1
 from datetime import datetime
 from backend.FileHandler import *
@@ -115,7 +115,8 @@ def optimize_route():
 
     # Prüfe ob Daten vorhanden
     if not patients or not vehicles:
-        return jsonify({'status': 'error', 'message': 'Mindestens ein Patient und ein Fahrzeug benötigt'})
+        flash('Mindestens ein Patient und ein Fahrzeug benötigt.', 'error')
+        return jsonify({'status': 'error'})
 
     # Patienten nach Besuchstyp trennen
     non_tk_patients = [p for p in patients if p.visit_type in ("Neuaufnahme", "HB")]
