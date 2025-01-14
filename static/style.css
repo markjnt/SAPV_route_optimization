@@ -331,9 +331,9 @@ li {
     display: inline-block;
 }
 
-.funktion-line.arzt { background-color: #FFD700; }        /* Gold für Ärzte */
-.funktion-line.pflege { background-color: #98FB98; }      /* Hellgrün für Pflegekräfte */
-.funktion-line.honorar { background-color: #DDA0DD; }     /* Hellviolett für Honorarärzte */
+.funktion-line.arzt { background-color: #98FB98; }
+.funktion-line.pflege { background-color: #FFD700; }
+.funktion-line.honorar { background-color: #DDA0DD; }
 
 /* Besuchsart-Badge für die Patientenliste */
 .visit-badge {
@@ -370,10 +370,11 @@ th {
 
 /* Beispieltabellen Styling */
 .example-table {
-    width: 100%;
+    width: auto;
     border-collapse: collapse;
     margin: 10px 0 20px 0;
     font-size: 0.9em;
+    white-space: nowrap;
 }
 
 .example-table th,
@@ -415,7 +416,7 @@ th {
 .info-popup {
     display: none;
     position: fixed;
-    top: 50%;
+    top: 35%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: white;
@@ -423,6 +424,7 @@ th {
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     z-index: 1000;
+    width: fit-content;
     max-width: 90%;
     max-height: 90vh;
     overflow-y: auto;
@@ -472,8 +474,8 @@ th {
     font-weight: bold;
 }
 
-.marker-function.arzt { background-color: #FFD700; }
-.marker-function.pflege { background-color: #98FB98; }
+.marker-function.arzt { background-color: #98FB98; }
+.marker-function.pflege { background-color: #FFD700; }
 .marker-function.honorar { background-color: #DDA0DD; }
 
 .marker-visit-type {
@@ -523,31 +525,53 @@ th {
     margin-bottom: 20px;
 }
 
-.weekday-section {
-    flex: 0 0 200px;  /* Feste Breite von 200px */
-    padding: 20px;
+.weekday-section, .upload-form {
     background-color: white;
     border-radius: 5px;
     border: 1px solid #cccccc;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    height: 120px;
 }
 
-.upload-section {
-    flex: 1;  /* Nimmt den restlichen Platz ein */
+.weekday-section h2, .upload-form h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
 }
 
-/* Anpassung der bestehenden Styles */
 .weekday-section select {
     width: 100%;
     margin-bottom: 10px;
     padding: 8px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
 }
 
 .weekday-section button {
     width: 100%;
+    padding: 8px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+}
+
+.weekday-section button:hover {
+    background-color: #f5f5f5;
+}
+
+.weekday-section {
+    flex: 1;
+}
+
+.upload-form {
+    flex: 1;
 }
 
 .flash-container {
-    min-height: 60px;
+    height: 40px;
     margin: 20px 0;
     position: relative;
 }
@@ -562,4 +586,50 @@ th {
 
 .main-content, .flash-container, .section {
     padding: 0;
+}
+
+.optimize-button {
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+    text-align: center;
+}
+
+.optimize-button button {
+    padding: 10px 20px;
+    font-size: 1.1em;
+    cursor: pointer;
+}
+
+/* Gemeinsame Button-Styles */
+.weekday-section button,
+.upload-form input[type="submit"],
+.optimize-button button {
+    padding: 10px 20px;
+    font-size: 1.1em;
+    background-color: #4CAF50;  /* Grüne Farbe */
+    color: white;              /* Weißer Text */
+    border: none;             /* Kein Rand */
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    transition: background-color 0.3s;  /* Sanfter Übergang */
+}
+
+.weekday-section button:hover,
+.upload-form input[type="submit"]:hover,
+.optimize-button button:hover {
+    background-color: #45a049;  /* Dunkleres Grün beim Hover */
+}
+
+/* Entferne die alten Button-Styles */
+.weekday-section button {
+    margin-bottom: 10px;  /* Nur für den "Nächsten Tag" Button */
+}
+
+.optimize-button {
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+    text-align: center;
 }

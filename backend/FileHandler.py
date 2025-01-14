@@ -122,7 +122,7 @@ def handle_patient_upload(request, selected_weekday=None):
                 flash(f'Fehler beim Verarbeiten der Patientendatei: {str(e)}')
                 return redirect(request.url)
         else:
-            flash('Keine gültige Patientendatei ausgewählt')
+            flash('Keine Patientendatei ausgewählt')
             return redirect(request.url)
 
     flash('Keine Patientendatei ausgewählt')
