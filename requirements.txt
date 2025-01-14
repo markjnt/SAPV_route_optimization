@@ -5,4 +5,4 @@ protobuf~=5.26.1
 Werkzeug~=3.0.6
 google-maps-routeoptimization~=0.1.7
 openpyxl==3.1.2
-XlsxWriter~=3.2.0
+reportlab==4.1.0

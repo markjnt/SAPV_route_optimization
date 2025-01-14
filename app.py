@@ -7,6 +7,13 @@ from backend.RouteHandler import get_start_time, get_end_time, get_date_from_wee
 from config import *
 from io import BytesIO
 import pandas as pd
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.units import cm
 
 # Google Cloud Service Account Authentifizierung
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
@@ -351,225 +358,188 @@ def update_vehicle_selection():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+def create_maps_url(address):
+    """Create Google Maps URL for direct navigation"""
+    base_url = "https://www.google.com/maps/dir/?api=1&destination="
+    # Return link format for PDF instead of Excel
+    return f'<link href="{base_url}{address.replace(" ", "+")}">{address}</link>'
+
 @app.route('/export_routes', methods=['GET'])
 def export_routes():
-    """Export routes to Excel file with multiple sheets"""
+    """Export routes to PDF file"""
     global optimized_routes
     global unassigned_tk_stops
     
-    # Get selected weekday and corresponding date
+    # Get date information
     selected_weekday = get_selected_weekday()
     week_number = session.get('selected_week')
     target_date = get_date_from_week(week_number, selected_weekday)
     formatted_date = target_date.strftime("%d_%m_%Y")
     
-    # Create Excel writer object
+    # Create PDF in memory
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        # Get workbook for formatting
-        workbook = writer.book
-        # Define formats
-        header_format = workbook.add_format({
-            'bold': True,
-            'text_wrap': True,
-            'valign': 'top',
-            'border': 1,  # Add border to all sides
-            'bg_color': '#f2f2f2'  # Light gray background
-        })
-        cell_format = workbook.add_format({
-            'text_wrap': True,
-            'valign': 'top'
-        })
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=landscape(A4),
+        rightMargin=1*cm,
+        leftMargin=1*cm,
+        topMargin=1*cm,
+        bottomMargin=1*cm,
+        title="SAPV Routenplanung",
+        author="SAPV Oberberg",
+        subject=f"Routen für {selected_weekday}, {formatted_date}",
+    )
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=14,
+        spaceAfter=20,
+        alignment=1  # Center alignment
+    )
+    
+    # Container for PDF elements
+    elements = []
+    
+    # Create tables for each route
+    for i, route in enumerate(optimized_routes):
+        # Add PageBreak if not first route
+        if i > 0:
+            elements.append(PageBreak())
+            
+        vehicle_name = route['vehicle']
         
-        # Create a sheet for each route
-        for route in optimized_routes:
-            vehicle_name = route['vehicle']
+        # Add vehicle name and duration info
+        elements.append(Paragraph(f"{vehicle_name}", title_style))
+        elements.append(Paragraph(
+            f"Gesamtdauer: {route['duration_hrs']} / {route['max_hours']} Stunden - {route['funktion']}",
+            styles['Normal']
+        ))
+        elements.append(Spacer(1, 12))
+        
+        # Regular stops
+        regular_stops = [stop for stop in route['stops'] if stop['visit_type'] != 'TK']
+        if regular_stops:
+            elements.append(Paragraph("Hausbesuche", title_style))
             
-            # Separate regular stops and TK stops
-            regular_stops = [stop for stop in route['stops'] if stop['visit_type'] != 'TK']
-            tk_stops = [stop for stop in route['stops'] if stop['visit_type'] == 'TK']
+            # Table header
+            data = [['Nr.', 'Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']]
             
-            # Create DataFrame for regular stops
-            regular_data = []
+            # Add stops to table
             for i, stop in enumerate(regular_stops, 1):
-                regular_data.append({
-                    'Stop-Nr': i,
-                    'Patient': stop['patient'],
-                    'Besuchsart': stop['visit_type'],
-                    'Adresse': stop['address'],
-                    'Uhrzeit/Info': stop.get('time_info', ''),
-                    'Telefon': stop.get('phone_numbers', '').replace(',', '\n')
-                })
+                data.append([
+                    str(i),
+                    stop['patient'],
+                    stop['visit_type'],
+                    Paragraph(create_maps_url(stop['address']), styles['Normal']),
+                    stop.get('time_info', ''),
+                    stop.get('phone_numbers', '').replace(',', '\n')
+                ])
             
-            if regular_data or tk_stops:  # Only create sheet if there are any stops
-                # Add route duration information at the top
-                duration_info = pd.DataFrame([{
-                    'Gesamtdauer': f"{route['duration_hrs']} / {route['max_hours']} Stunden",
-                    'Funktion': route['funktion']
-                }])
-                
-                # Write duration info
-                duration_info.to_excel(writer, sheet_name=vehicle_name, index=False, startrow=0)
-                
-                # Get worksheet object right after creating the sheet
-                worksheet = writer.sheets[vehicle_name]
-                
-                current_row = 3  # Start after duration info
-                
-                # Set column widths and formats
-                column_widths = {
-                    'Stop-Nr': 15,
-                    'Patient': 25,
-                    'Besuchsart': 25,
-                    'Adresse': 35,
-                    'Uhrzeit/Info': 20,
-                    'Telefon': 20
-                }
-                
-                # Write regular stops if any
-                if regular_data:
-                    regular_df = pd.DataFrame(regular_data)
-                    
-                    # Write "Hausbesuche" header with format
-                    hb_section_header = workbook.add_format({
-                        'bold': True,
-                        'font_size': 14,
-                        'align': 'center',
-                        'valign': 'vcenter'
-                    })
-                    # Merge cells for the section header
-                    worksheet.merge_range(current_row, 0, current_row, 5, 'Hausbesuche', hb_section_header)
-                    current_row += 1
-                    
-                    # Write column headers
-                    for idx, (col, width) in enumerate(column_widths.items()):
-                        worksheet.write(current_row, idx, col, header_format)
-                    current_row += 1
-                    
-                    # Write regular data without headers
-                    for row_idx, row_data in enumerate(regular_data):
-                        for col_idx, (key, value) in enumerate(row_data.items()):
-                            worksheet.write(current_row + row_idx, 
-                                         col_idx, 
-                                         value, 
-                                         cell_format)
-                    current_row += len(regular_data) + 2  # Add 2 for spacing
-                
-                # Write TK stops if any
-                if tk_stops:
-                    # Create DataFrame for TK stops with correct column order
-                    tk_data = []
-                    for stop in tk_stops:
-                        tk_data.append({
-                            'Patient': stop['patient'],
-                            'Besuchsart': 'TK',
-                            'Adresse': stop['address'],
-                            'Uhrzeit/Info': stop.get('time_info', ''),
-                            'Telefon': stop.get('phone_numbers', '').replace(',', '\n')
-                        })
-                    
-                    # Write "Telefonkontakte" header with format
-                    tk_section_header = workbook.add_format({
-                        'bold': True,
-                        'font_size': 14,
-                        'align': 'center',
-                        'valign': 'vcenter'
-                    })
-                    # Merge cells for the section header
-                    worksheet.merge_range(current_row, 0, current_row, 4, 'Telefonkontakte', tk_section_header)
-                    current_row += 1
-                    
-                    # Define TK columns and their order
-                    tk_columns = ['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']
-                    
-                    # Write column headers
-                    for idx, col in enumerate(tk_columns):
-                        worksheet.write(current_row, idx, col, header_format)
-                    current_row += 1
-                    
-                    # Write TK data in correct order
-                    for row_idx, data in enumerate(tk_data):
-                        for col_idx, col in enumerate(tk_columns):
-                            worksheet.write(current_row + row_idx, 
-                                         col_idx, 
-                                         data[col], 
-                                         cell_format)
-                
-                # Format all columns
-                for idx, (col, width) in enumerate(column_widths.items()):
-                    worksheet.set_column(idx, idx, width, cell_format)
-                
-                # Set row height for all rows to accommodate wrapped text
-                max_row = current_row + (len(tk_data) if tk_stops else 0)
-                for row in range(4, max_row + 2):
-                    worksheet.set_row(row, 30)
-
-        # Add unassigned TK cases to separate sheet if any exist
-        if unassigned_tk_stops:
-            tk_data = [{
-                'Patient': stop['patient'],
-                'Besuchsart': 'TK',
-                'Adresse': stop['address'],
-                'Uhrzeit/Info': stop.get('time_info', ''),
-                'Telefon': stop.get('phone_numbers', '').replace(',', '\n')
-            } for stop in unassigned_tk_stops]
+            # Create and style table
+            table = Table(data, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 20))
+        
+        # TK stops
+        tk_stops = [stop for stop in route['stops'] if stop['visit_type'] == 'TK']
+        if tk_stops:
+            elements.append(Paragraph("Telefonkontakte", title_style))
             
-            # Create empty sheet
-            worksheet = workbook.add_worksheet('Nicht zugeordnete TK')
-            current_row = 0  # Start from top
+            # Table header
+            data = [['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']]
             
-            # Write "Telefonkontakte" header with format
-            tk_section_header = workbook.add_format({
-                'bold': True,
-                'font_size': 14,
-                'align': 'center',
-                'valign': 'vcenter'
-            })
-            # Merge cells for the section header
-            worksheet.merge_range(current_row, 0, current_row, 4, 'Nicht zugeordnete Telefonkontakte', tk_section_header)
-            current_row += 1
+            # Add TK stops to table
+            for stop in tk_stops:
+                data.append([
+                    stop['patient'],
+                    'TK',
+                    Paragraph(create_maps_url(stop['address']), styles['Normal']),
+                    stop.get('time_info', ''),
+                    stop.get('phone_numbers', '').replace(',', '\n')
+                ])
             
-            # Define TK columns and their order
-            tk_columns = ['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']
-            
-            # Write column headers
-            for idx, col in enumerate(tk_columns):
-                worksheet.write(current_row, idx, col, header_format)
-            current_row += 1
-            
-            # Write TK data in correct order
-            for row_idx, data in enumerate(tk_data):
-                for col_idx, col in enumerate(tk_columns):
-                    worksheet.write(current_row + row_idx, 
-                                 col_idx, 
-                                 data[col], 
-                                 cell_format)
-            
-            # Set column widths
-            column_widths = {
-                'Patient': 25,
-                'Besuchsart': 12,
-                'Adresse': 35,
-                'Uhrzeit/Info': 20,
-                'Telefon': 20
-            }
-            
-            # Format columns
-            for idx, (col, width) in enumerate(column_widths.items()):
-                worksheet.set_column(idx, idx, width, cell_format)
-            
-            # Set row height for all rows
-            max_row = current_row + len(tk_data)
-            for row in range(1, max_row + 1):
-                worksheet.set_row(row, 30)
-
-    # Prepare the file for sending
+            # Create and style table
+            table = Table(data, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            elements.append(table)
+    
+    # Add unassigned TK cases if any
+    if unassigned_tk_stops:
+        # Add PageBreak before unassigned TK cases
+        elements.append(PageBreak())
+        
+        elements.append(Paragraph("Nicht zugeordnete Telefonkontakte", title_style))
+        
+        # Table header
+        data = [['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']]
+        
+        # Add unassigned TK stops
+        for stop in unassigned_tk_stops:
+            data.append([
+                stop['patient'],
+                'TK',
+                Paragraph(create_maps_url(stop['address']), styles['Normal']),
+                stop.get('time_info', ''),
+                stop.get('phone_numbers', '').replace(',', '\n')
+            ])
+        
+        # Create and style table
+        table = Table(data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        elements.append(table)
+    
+    # Build PDF
+    doc.build(elements)
     output.seek(0)
+    
     return send_file(
         output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        mimetype='application/pdf',
         as_attachment=True,
-        download_name=f'Optimierte_Routen_{formatted_date}_{selected_weekday}.xlsx'
+        download_name=f'Optimierte_Routen_{formatted_date}_{selected_weekday}.pdf'
     )
 
 if __name__ == '__main__':
