@@ -33,8 +33,9 @@ class Vehicle(Entity):
         self.start_address = start_address
         self.stellenumfang = stellenumfang  # Arbeitszeit in Prozent (0-100%)
         self.funktion = funktion
+        self.is_active = True  # Standardmäßig aktiv
 
     def __str__(self):
         return (f"Vehicle: {self.name}, {self.start_address} "
                 f"({self.lat}, {self.lon}), Stellenumfang={self.stellenumfang}, "
-                f"Funktion={self.funktion}")
+                f"Funktion={self.funktion}, Active={self.is_active}")

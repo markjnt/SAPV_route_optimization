@@ -14,9 +14,14 @@
         <h1>Mitarbeiterliste</h1>
 
         {% if vehicles %}
+        <div class="vehicle-controls">
+            <button onclick="toggleAllVehicles(true)">Alle auswählen</button>
+            <button onclick="toggleAllVehicles(false)">Alle abwählen</button>
+        </div>
         <table>
             <thead>
                 <tr>
+                    <th>Aktiv</th>
                     <th>Nr.</th>
                     <th>Name</th>
                     <th>Funktion</th>
@@ -27,6 +32,13 @@
             <tbody>
                 {% for vehicle in vehicles %}
                 <tr>
+                    <td>
+                        <input type="checkbox" 
+                               class="vehicle-checkbox" 
+                               data-vehicle-id="{{ vehicle.id }}"
+                               onchange="updateVehicleSelection(this)"
+                               {% if vehicle.is_active %}checked{% endif %}>
+                    </td>
                     <td>{{ vehicle.id }}</td>
                     <td>{{ vehicle.name }}</td>
                     <td>
@@ -47,5 +59,58 @@
         <p>Keine Fahrzeuge gefunden.</p>
         {% endif %}
     </div>
+
+    <script>
+        function updateVehicleSelection(checkbox) {
+            const vehicleId = parseInt(checkbox.dataset.vehicleId);
+            const isActive = checkbox.checked;
+            
+            fetch('/update_vehicle_selection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    vehicles: [{
+                        id: vehicleId,
+                        active: isActive
+                    }]
+                })
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Fehler beim Speichern der Auswahl.');
+                // Bei Fehler Checkbox auf vorherigen Zustand zurücksetzen
+                checkbox.checked = !isActive;
+            });
+        }
+
+        function toggleAllVehicles(checked) {
+            const checkboxes = document.querySelectorAll('.vehicle-checkbox');
+            const updates = [];
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = checked;
+                updates.push({
+                    id: parseInt(checkbox.dataset.vehicleId),
+                    active: checked
+                });
+            });
+
+            fetch('/update_vehicle_selection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ vehicles: updates })
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Fehler beim Speichern der Auswahl.');
+                // Bei Fehler Checkboxen auf vorherigen Zustand zurücksetzen
+                checkboxes.forEach(checkbox => checkbox.checked = !checked);
+            });
+        }
+    </script>
 </body>
 </html>

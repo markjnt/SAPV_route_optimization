@@ -107,17 +107,18 @@ def show_vehicles():
 def optimize_route():
     """
     Routenoptimierung:
+    - Berücksichtigt nur aktive Fahrzeuge
     - Trennung von TK und Nicht-TK Patienten
     - Flottenrouting nur für Nicht-TK
     - Berücksichtigung des Stellenumfangs als maximale Routenzeit
     - Separate Rückgabe der TK-Fälle
-    - Optionale Zeitausgabe im Terminal
     """
     optimization_client = routeoptimization_v1.RouteOptimizationClient()
 
     # Prüfe ob Daten vorhanden
-    if not patients or not vehicles:
-        flash('Mindestens ein Patient und ein Fahrzeug benötigt.', 'error')
+    active_vehicles = [v for v in vehicles if v.is_active]
+    if not patients or not active_vehicles:
+        flash('Mindestens ein Patient und ein aktives Fahrzeug benötigt.', 'error')
         return jsonify({'status': 'error'})
 
     # Patienten nach Besuchstyp trennen
@@ -145,15 +146,12 @@ def optimize_route():
 
     # 3) Fahrzeuge: Berücksichtige Stellenumfang
     vehicles_model = []
-    for v in vehicles:
+    for v in active_vehicles:
         stellenumfang = getattr(v, 'stellenumfang', 100)  
         
         # Berechne Sekunden (7 Stunden * Stellenumfang%)
         seconds = int((stellenumfang / 100.0) * 7 * 3600)
         
-        # Formatiere als Duration-String
-        duration_string = f"{seconds}s"
-
         vehicle_model = {
             "start_location": {
                 "latitude": v.lat,
@@ -165,7 +163,7 @@ def optimize_route():
             },
             "cost_per_hour": 1,
             "route_duration_limit": {
-                "max_duration": duration_string
+                "max_duration": f"{seconds}s"
             }
         }
         vehicles_model.append(vehicle_model)
@@ -208,13 +206,13 @@ def optimize_route():
                 print(f"Fahrzeug {i} => "
                       f"Start: {start_dt}, Ende: {end_dt}, "
                       f"Dauer: {duration_hrs:.2f} h, "
-                      f"Name: {vehicles[route.vehicle_index].name}")
+                      f"Name: {active_vehicles[route.vehicle_index].name}")
             else:
                 duration_hrs = 0
                 print(f"Fahrzeug {i} => None start/end (nicht genutzt?)")
 
             v_index = route.vehicle_index
-            vehicle = vehicles[v_index]
+            vehicle = active_vehicles[v_index]
             # Berechne max_hours basierend auf Stellenumfang (100% = 7h)
             max_hours = round((getattr(vehicle, 'stellenumfang', 100) / 100.0) * 7, 2)
             
@@ -287,10 +285,12 @@ def update_routes():
         data = request.get_json()
         optimized_routes = []
         
+        active_vehicles = [v for v in vehicles if v.is_active]
+        
         # Reguläre Routen verarbeiten
         for route in data.get('optimized_routes', []):
             if route['vehicle'] != 'tk':
-                vehicle = next((v for v in vehicles if v.name == route['vehicle']), None)
+                vehicle = next((v for v in active_vehicles if v.name == route['vehicle']), None)
                 if vehicle:
                     route_info = {
                         'vehicle': route['vehicle'],
@@ -327,6 +327,27 @@ def get_saved_routes():
         'routes': optimized_routes,
         'tk_patients': unassigned_tk_stops
     })
+
+@app.route('/update_vehicle_selection', methods=['POST'])
+def update_vehicle_selection():
+    try:
+        data = request.get_json()
+        vehicle_updates = data.get('vehicles', [])
+        
+        # Update vehicle active status
+        for update in vehicle_updates:
+            vehicle_id = update.get('id')
+            is_active = update.get('active')
+            
+            # Finde das entsprechende Fahrzeug und aktualisiere den Status
+            for vehicle in vehicles:
+                if vehicle.id == vehicle_id:
+                    vehicle.is_active = is_active
+                    break
+        
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
