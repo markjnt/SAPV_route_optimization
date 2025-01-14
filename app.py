@@ -118,24 +118,30 @@ def show_vehicles():
 @app.route('/optimize_route', methods=['POST'])
 def optimize_route():
     try:
-        # Nur aktive Pflegekräfte für die initiale Optimierung verwenden
-        available_vehicles = [v for v in vehicles if v.is_active and v.funktion == 'Pflegekraft']
-        
-        # Alle aktiven Mitarbeiter für die Container-Erstellung
-        all_active_vehicles = [v for v in vehicles if v.is_active]
-        
-        if not available_vehicles:
+        # Prüfe zuerst, ob überhaupt aktive Pflegekräfte verfügbar sind
+        has_active_nurses = any(v.is_active and v.funktion == 'Pflegekraft' for v in vehicles)
+        if not has_active_nurses:
+            flash('Es muss mindestens eine aktive Pflegekraft verfügbar sein.', 'error')
             return jsonify({
                 'status': 'error',
                 'message': 'Keine aktiven Pflegekräfte verfügbar.'
             })
 
-        optimization_client = routeoptimization_v1.RouteOptimizationClient()
+        # Nur aktive Pflegekräfte für die initiale Optimierung verwenden
+        available_vehicles = [v for v in vehicles if v.is_active and v.funktion == 'Pflegekraft']
+        
+        # Alle aktiven Mitarbeiter für die Container-Erstellung
+        all_active_vehicles = [v for v in vehicles if v.is_active]
 
-        # Prüfe ob Daten vorhanden
-        if not patients or not available_vehicles:
-            flash('Mindestens ein Patient und eine aktive Pflegekraft benötigt.', 'error')
-            return jsonify({'status': 'error'})
+        # Prüfe ob Patienten vorhanden sind
+        if not patients:
+            flash('Es muss mindestens ein Patient vorhanden sein.', 'error')
+            return jsonify({
+                'status': 'error',
+                'message': 'Keine Patienten gefunden.'
+            })
+
+        optimization_client = routeoptimization_v1.RouteOptimizationClient()
 
         # Patienten nach Besuchstyp trennen
         non_tk_patients = [p for p in patients if p.visit_type in ("Neuaufnahme", "HB")]
