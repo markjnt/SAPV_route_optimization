@@ -240,6 +240,7 @@ def optimize_route():
                         "address": p.address,
                         "visit_type": p.visit_type,
                         "time_info": p.time_info,
+                        "phone_numbers": p.phone_numbers,
                         "location": {
                             "lat": p.lat,
                             "lng": p.lon
@@ -256,6 +257,7 @@ def optimize_route():
                 "address": tk.address,
                 "visit_type": tk.visit_type,
                 "time_info": tk.time_info,
+                "phone_numbers": tk.phone_numbers,
                 "location": {
                     "lat": tk.lat,
                     "lng": tk.lon

@@ -60,6 +60,9 @@ def handle_patient_upload(request, selected_weekday=None):
                 required_columns += list(WEEKDAY_MAPPING.values())
                 required_columns += [f"Uhrzeit/Info {day}" for day in WEEKDAY_MAPPING.values()]
                 
+                # Add phone columns to required columns
+                phone_columns = ['Telefon', 'Telefon2']
+                
                 if not all(col in df.columns for col in required_columns):
                     flash('Excel-Datei hat nicht alle erforderlichen Spalten.')
                     return redirect(request.url)
@@ -98,15 +101,31 @@ def handle_patient_upload(request, selected_weekday=None):
                     name = f"{row['Vorname']} {row['Nachname']}"
                     address = f"{row['Strasse']}, {row['PLZ']} {row['Ort']}"
                     visit_type = row[weekday]
-                    # Konvertiere NaN zu leerem String
                     time_info = str(row.get(time_info_column, ""))
                     time_info = "" if time_info.lower() == "nan" else time_info
+                    
+                    # Handle phone numbers
+                    phone1 = str(row.get('Telefon', "")).strip()
+                    phone2 = str(row.get('Telefon2', "")).strip()
+                    phone1 = "" if phone1.lower() == "nan" else phone1
+                    phone2 = "" if phone2.lower() == "nan" else phone2
+                    
+                    # Combine phone numbers with line break if both exist
+                    phone_numbers = ""
+                    if phone1 and phone2:
+                        phone_numbers = f"{phone1}\n{phone2}"
+                    elif phone1:
+                        phone_numbers = phone1
+                    elif phone2:
+                        phone_numbers = phone2
+                    
                     lat, lon = geocode_address(address)
                     patient = Patient(
                         name=name, 
                         address=address, 
                         visit_type=visit_type, 
                         time_info=time_info,
+                        phone_numbers=phone_numbers,
                         lat=lat, 
                         lon=lon
                     )

@@ -434,6 +434,7 @@ function displayRoutes(data) {
                     <div class="address">${stop.address}</div>
                     <div class="time-info">${stop.time_info || ''}</div>
                     <div style="display:none" data-lat="${stop.location.lat}" data-lng="${stop.location.lng}"></div>
+                    <div style="display:none" data-phone="${stop.phone_numbers || ''}"></div>
                 </div>
             `;
             
@@ -475,6 +476,7 @@ function displayRoutes(data) {
                     <div class="address">${tk.address}</div>
                     <div class="time-info">${tk.time_info || ''}</div>
                     <div style="display:none" data-lat="${tk.location?.lat}" data-lng="${tk.location?.lng}"></div>
+                    <div style="display:none" data-phone="${tk.phone_numbers || ''}"></div>
                 </div>
             `;
             
@@ -729,6 +731,7 @@ function updateOptimizedRoutes() {
                 address: stop.querySelector('.address').textContent,
                 visit_type: isTKStop ? "TK" : stop.querySelector('.visit-type').textContent,
                 time_info: stop.querySelector('.time-info')?.textContent || "",
+                phone_numbers: stop.querySelector('[data-phone]')?.dataset.phone || "",
                 location: locationDiv ? {
                     lat: parseFloat(locationDiv.dataset.lat),
                     lng: parseFloat(locationDiv.dataset.lng)
@@ -755,6 +758,7 @@ function updateOptimizedRoutes() {
                 patient: patient,
                 address: stop.querySelector('.address').textContent,
                 visit_type: "TK",
+                phone_numbers: stop.querySelector('[data-phone]')?.dataset.phone || "",
                 location: locationDiv ? {
                     lat: parseFloat(locationDiv.dataset.lat),
                     lng: parseFloat(locationDiv.dataset.lng)

@@ -21,8 +21,10 @@
                     <th>Nr.</th>
                     <th>Name</th>
                     <th>Adresse</th>
+                    <th>Telefon</th>
                     <th>Uhrzeit/Info</th>
                     <th>Besuchsart</th>
+
                 </tr>
             </thead>
             <tbody>
@@ -31,12 +33,14 @@
                     <td>{{ patient.id }}</td>
                     <td>{{ patient.name }}</td>
                     <td>{{ patient.address }}</td>
+                    <td style="white-space: pre-line">{{ patient.phone_numbers }}</td>
                     <td>{{ patient.time_info }}</td>
                     <td>
                         <span class="visit-badge {% if patient.visit_type == 'HB' %}hb{% elif patient.visit_type == 'TK' %}tk{% elif patient.visit_type == 'Neuaufnahme' %}neuaufnahme{% endif %}">
                             {{ patient.visit_type }}
                         </span>
                     </td>
+
                 </tr>
                 {% endfor %}
             </tbody>
