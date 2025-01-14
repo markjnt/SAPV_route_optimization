@@ -71,18 +71,18 @@ def handle_patient_upload(request, selected_weekday=None):
                 try:
                     df['KW'] = pd.to_numeric(df['KW'], errors='raise')
                 except ValueError:
-                    flash('Fehler: Die KW-Spalte enthält ungültige Werte. Bitte nur Zahlen eingeben.', 'error')
+                    flash('Fehler: Die KW-Spalte enthält ungültige Werte. Bitte nur Zahlen eingeben.')
                     return redirect(request.url)
                 
                 # Prüfe ob KW im gültigen Bereich liegt
                 if not all((1 <= df['KW']) & (df['KW'] <= 53)):
-                    flash('Fehler: KW-Werte müssen zwischen 1 und 53 liegen.', 'error')
+                    flash('Fehler: KW-Werte müssen zwischen 1 und 53 liegen.')
                     return redirect(request.url)
                 
                 # Prüfe ob alle Zeilen die gleiche KW haben
                 if df['KW'].nunique() > 1:
                     kw_values = df['KW'].unique()
-                    flash(f'Fehler: Unterschiedliche Kalenderwochen in der Datei gefunden: {", ".join(map(str, kw_values))}', 'error')
+                    flash(f'Fehler: Unterschiedliche Kalenderwochen in der Datei gefunden: {", ".join(map(str, kw_values))}.')
                     return redirect(request.url)
                 
                 # Hole die Kalenderwoche
@@ -113,29 +113,29 @@ def handle_patient_upload(request, selected_weekday=None):
                     patients.append(patient)
 
                 if len(patients) == 0:
-                    flash(f'Keine Patienten für {weekday} gefunden.', 'error')
+                    flash(f'Keine Patienten für {weekday} gefunden.')
                 else:
-                    flash(f'{len(patients)} Patienten für {weekday} erfolgreich importiert', 'success')
+                    flash(f'{len(patients)} Patienten für {weekday} erfolgreich importiert.')
                 return redirect(url_for('show_patients'))
 
             except Exception as e:
-                flash(f'Fehler beim Verarbeiten der Patientendatei: {str(e)}')
+                flash(f'Fehler beim Verarbeiten der Patientendatei: {str(e)}.')
                 return redirect(request.url)
         else:
-            flash('Keine Patientendatei ausgewählt')
+            flash('Keine Patientendatei ausgewählt.')
             return redirect(request.url)
 
-    flash('Keine Patientendatei ausgewählt')
+    flash('Keine Patientendatei ausgewählt.')
     return redirect(request.url)
 
 def handle_vehicle_upload(request):
     if 'vehicle_file' not in request.files:
-        flash('Keine Mitarbeiterdatei ausgewählt')
+        flash('Keine Mitarbeiterdatei ausgewählt.')
         return redirect(request.url)
 
     file = request.files['vehicle_file']
     if file.filename == '':
-        flash('Keine Mitarbeiterdatei ausgewählt')
+        flash('Keine Mitarbeiterdatei ausgewählt.')
         return redirect(request.url)
 
     if file and allowed_file(file.filename):
@@ -144,7 +144,7 @@ def handle_vehicle_upload(request):
 
             required_columns = ['Nachname', 'Vorname', 'Strasse', 'Ort', 'PLZ', 'Stellenumfang', 'Funktion']
             if not all(col in df.columns for col in required_columns):
-                flash('Excel-Datei hat nicht alle erforderlichen Spalten')
+                flash('Excel-Datei hat nicht alle erforderlichen Spalten.')
                 return redirect(request.url)
 
             vehicles.clear()
@@ -172,11 +172,11 @@ def handle_vehicle_upload(request):
                 vehicles.append(vehicle)
 
             if len(vehicles) == 0:
-                flash('Keine Mitarbeiter importiert')
+                flash('Keine Mitarbeiter importiert.')
             else:
-                flash(f'{len(vehicles)} Mitarbeiter erfolgreich importiert')
+                flash(f'{len(vehicles)} Mitarbeiter erfolgreich importiert.')
             return redirect(url_for('show_vehicles'))
 
         except Exception as e:
-            flash(f'Fehler beim Verarbeiten der Mitarbeiterdatei: {str(e)}')
+            flash(f'Fehler beim Verarbeiten der Mitarbeiterdatei: {str(e)}.')
             return redirect(request.url)
