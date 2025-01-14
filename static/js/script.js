@@ -135,9 +135,9 @@ async function loadMarkers() {
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: 10,
-          fillColor: v.funktion === 'Arzt' ? '#00FF00' :
+          fillColor: v.funktion === 'Arzt' ? '#98FB98' :
                      v.funktion === 'Pflegekraft' ? '#FFD700' :
-                     v.funktion?.toLowerCase().includes('honorararzt') ? '#FF1493' :
+                     v.funktion?.toLowerCase().includes('honorararzt') ? '#DDA0DD' :
                      '#666666',
           fillOpacity: 1,
           strokeWeight: 2,

@@ -78,6 +78,9 @@ def upload_file():
 
 @app.route('/get_markers')
 def get_markers():
+    # Hole aktive Vehicles
+    all_active_vehicles = [v for v in vehicles if v.is_active]
+    
     return jsonify({
         'patients': [
             {
@@ -95,7 +98,7 @@ def get_markers():
                 'lat': v.lat,
                 'lng': v.lon,
                 'funktion': v.funktion
-            } for v in vehicles
+            } for v in all_active_vehicles
         ]
     })
 
@@ -416,11 +419,17 @@ def export_routes():
     # Container for PDF elements
     elements = []
     
-    # Create tables for each route
-    for i, route in enumerate(optimized_routes):
-        # Add PageBreak if not first route
-        if i > 0:
+    # Create tables for each route that has patients
+    first_page = True
+    for route in optimized_routes:
+        # Skip routes without any stops
+        if not route['stops']:
+            continue
+            
+        # Add PageBreak if not first route with stops
+        if not first_page:
             elements.append(PageBreak())
+        first_page = False
             
         vehicle_name = route['vehicle']
         
@@ -508,8 +517,9 @@ def export_routes():
     
     # Add unassigned TK cases if any
     if unassigned_tk_stops:
-        # Add PageBreak before unassigned TK cases
-        elements.append(PageBreak())
+        # Add PageBreak before unassigned TK cases if we had any routes
+        if not first_page:
+            elements.append(PageBreak())
         
         elements.append(Paragraph("Nicht zugeordnete Telefonkontakte", title_style))
         
