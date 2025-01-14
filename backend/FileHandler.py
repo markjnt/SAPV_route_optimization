@@ -53,28 +53,44 @@ def handle_patient_upload(request, selected_weekday=None):
         file = request.files['patient_file']
         if file and file.filename != '' and allowed_file(file.filename):
             try:
-                # Speichere die letzte Datei für späteres Neuladen
                 app.last_patient_upload = request
                 
                 df = pd.read_excel(file, dtype=str)
-                # Basis-Spalten
-                required_columns = ['Nachname', 'Vorname', 'Strasse', 'Ort', 'PLZ']
-                # Wochentags-Spalten
+                required_columns = ['Nachname', 'Vorname', 'Strasse', 'Ort', 'PLZ', 'KW']
                 required_columns += list(WEEKDAY_MAPPING.values())
-                # Uhrzeit/Info-Spalten für jeden Wochentag
                 required_columns += [f"Uhrzeit/Info {day}" for day in WEEKDAY_MAPPING.values()]
                 
                 if not all(col in df.columns for col in required_columns):
-                    flash('Excel-Datei hat nicht alle erforderlichen Spalten')
+                    flash('Excel-Datei hat nicht alle erforderlichen Spalten.')
                     return redirect(request.url)
 
-                # Verwende den übergebenen Wochentag oder hole ihn aus der Session
                 weekday = selected_weekday or get_selected_weekday()
-                
-                # Spaltenname für Zeitinfo
                 time_info_column = f"Uhrzeit/Info {weekday}"
                 
-                # Filtere nach Wochentag und gültigen Besuchsarten
+                # Prüfe ob KW-Spalte numerische Werte enthält
+                try:
+                    df['KW'] = pd.to_numeric(df['KW'], errors='raise')
+                except ValueError:
+                    flash('Fehler: Die KW-Spalte enthält ungültige Werte. Bitte nur Zahlen eingeben.', 'error')
+                    return redirect(request.url)
+                
+                # Prüfe ob KW im gültigen Bereich liegt
+                if not all((1 <= df['KW']) & (df['KW'] <= 53)):
+                    flash('Fehler: KW-Werte müssen zwischen 1 und 53 liegen.', 'error')
+                    return redirect(request.url)
+                
+                # Prüfe ob alle Zeilen die gleiche KW haben
+                if df['KW'].nunique() > 1:
+                    kw_values = df['KW'].unique()
+                    flash(f'Fehler: Unterschiedliche Kalenderwochen in der Datei gefunden: {", ".join(map(str, kw_values))}', 'error')
+                    return redirect(request.url)
+                
+                # Hole die Kalenderwoche
+                week_number = int(df['KW'].iloc[0])
+                
+                # Speichere KW in der Session
+                session['selected_week'] = week_number
+                
                 df_filtered = df[df[weekday].isin(VALID_VISIT_TYPES)].copy()
 
                 patients.clear()
@@ -97,9 +113,9 @@ def handle_patient_upload(request, selected_weekday=None):
                     patients.append(patient)
 
                 if len(patients) == 0:
-                    flash(f'Keine Patienten für {weekday} gefunden.')
+                    flash(f'Keine Patienten für {weekday} gefunden.', 'error')
                 else:
-                    flash(f'{len(patients)} Patienten für {weekday} erfolgreich importiert')
+                    flash(f'{len(patients)} Patienten für {weekday} erfolgreich importiert', 'success')
                 return redirect(url_for('show_patients'))
 
             except Exception as e:

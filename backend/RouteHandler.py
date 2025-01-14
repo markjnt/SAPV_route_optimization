@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
 
-# Nächsten Wochentag ermitteln
-def get_next_weekday(weekday_name: str) -> datetime:
-    # Wochentage mit Großbuchstaben
+def get_date_from_week(week_number: int, weekday_name: str, year: int = None) -> datetime:
     weekdays = {
         'Montag': 0,
         'Dienstag': 1,
@@ -12,37 +10,37 @@ def get_next_weekday(weekday_name: str) -> datetime:
         'Samstag': 5,
         'Sonntag': 6
     }
-
-    # Aktuelles Datum abrufen
-    current_date = datetime.utcnow()
-
-    # Wochentag des aktuellen Datums (0 = Montag, 6 = Sonntag)
-    current_weekday = current_date.weekday()
-
-    # Überprüfen, ob der eingegebene Wochentag gültig ist
-    if weekday_name not in weekdays:
-        raise ValueError("Ungültiger Wochentag.")
-
-    # Zielwochentag
-    target_weekday = weekdays[weekday_name]
-
-    # Differenz zwischen dem aktuellen Wochentag und dem Zielwochentag berechnen
-    days_difference = (target_weekday - current_weekday) % 7
-
-    # Datum für den nächsten Zielwochentag berechnen
-    return current_date + timedelta(days=days_difference)
-
+    
+    if year is None:
+        year = datetime.now().year
+    
+    first_day = datetime(year, 1, 1)
+    
+    while first_day.strftime('%W') == '00':
+        first_day += timedelta(days=1)
+    
+    target_monday = first_day + timedelta(weeks=week_number-1)
+    target_date = target_monday + timedelta(days=weekdays[weekday_name])
+    
+    return target_date
 
 # Startzeit für Route ermitteln
-def get_start_time(weekday_name: str) -> str:
-    target_date = get_next_weekday(weekday_name)
+def get_start_time(weekday_name: str, week_number: int = None) -> str:
+    if week_number is None:
+        current_date = datetime.utcnow()
+        week_number = int(current_date.strftime('%W'))
+    
+    target_date = get_date_from_week(week_number, weekday_name)
     start_time = datetime(target_date.year, target_date.month, target_date.day, 8, 0, 0)
     return start_time.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
-
 # Endzeit für Route ermitteln
-def get_end_time(weekday_name: str) -> str:
-    target_date = get_next_weekday(weekday_name)
+def get_end_time(weekday_name: str, week_number: int = None) -> str:
+    if week_number is None:
+        current_date = datetime.utcnow()
+        week_number = int(current_date.strftime('%W'))
+    
+    target_date = get_date_from_week(week_number, weekday_name)
     end_time = datetime(target_date.year, target_date.month, target_date.day, 16, 0, 0)
     return end_time.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 

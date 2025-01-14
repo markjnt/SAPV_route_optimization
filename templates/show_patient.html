@@ -13,7 +13,7 @@
 
         <h1>Patientenliste</h1>
 
-        <h2>Termine für {{ weekday }}</h2>
+        <h2>{{ weekday }}, {{ date.strftime('%d.%m.%Y') }} (KW {{ week_number }})</h2>
 
         <table>
             <thead>
@@ -21,7 +21,7 @@
                     <th>Nr.</th>
                     <th>Name</th>
                     <th>Adresse</th>
-                    <th>Uhrzeit/Info {{ weekday }}</th>
+                    <th>Uhrzeit/Info</th>
                     <th>Besuchsart</th>
                 </tr>
             </thead>

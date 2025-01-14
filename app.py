@@ -3,14 +3,14 @@ from flask import Flask, render_template, request, jsonify, session, flash
 from google.maps import routeoptimization_v1
 from datetime import datetime
 from backend.FileHandler import *
-from backend.RouteHandler import get_start_time, get_end_time
+from backend.RouteHandler import get_start_time, get_end_time, get_date_from_week
 from config import *
 
 # Google Cloud Service Account Authentifizierung
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
 
 app = Flask(__name__)
-app.secret_key = FLASK_SECRET_KEY
+app.secret_key = '4c4bbaed949dc88d23335ca574e42aef00206906972c27a8015b2be0735033534'
 
 # Globale Variable für optimierte Routen
 optimized_routes = []
@@ -93,9 +93,11 @@ def get_markers():
 @app.route('/patients', methods=['GET', 'POST'])
 def show_patients():
     selected_weekday = get_selected_weekday()
+    week_number = session.get('selected_week')
+    date = get_date_from_week(week_number, selected_weekday)
     return render_template('show_patient.html',
                            patients=patients,
-                           weekday=selected_weekday)
+                           weekday=selected_weekday, week_number=week_number, date=date)
 
 @app.route('/vehicles')
 def show_vehicles():
@@ -169,13 +171,16 @@ def optimize_route():
         vehicles_model.append(vehicle_model)
 
     # Request zusammenstellen
+    selected_weekday = get_selected_weekday()
+    week_number = session.get('selected_week')
+    
     fleet_routing_request = routeoptimization_v1.OptimizeToursRequest({
         "parent": "projects/routenplanung-sapv",
         "model": {
             "shipments": shipments,
             "vehicles": vehicles_model,
-            "global_start_time": get_start_time(get_selected_weekday()),
-            "global_end_time": get_end_time(get_selected_weekday())
+            "global_start_time": get_start_time(selected_weekday, week_number),
+            "global_end_time": get_end_time(selected_weekday, week_number)
         }
     })
 
