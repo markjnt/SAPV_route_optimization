@@ -1,10 +1,12 @@
 import os
-from flask import Flask, render_template, request, jsonify, session, flash
+from flask import Flask, render_template, request, jsonify, session, flash, send_file
 from google.maps import routeoptimization_v1
 from datetime import datetime
 from backend.FileHandler import *
 from backend.RouteHandler import get_start_time, get_end_time, get_date_from_week
 from config import *
+from io import BytesIO
+import pandas as pd
 
 # Google Cloud Service Account Authentifizierung
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
@@ -348,6 +350,227 @@ def update_vehicle_selection():
         return jsonify({'status': 'success'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/export_routes', methods=['GET'])
+def export_routes():
+    """Export routes to Excel file with multiple sheets"""
+    global optimized_routes
+    global unassigned_tk_stops
+    
+    # Get selected weekday and corresponding date
+    selected_weekday = get_selected_weekday()
+    week_number = session.get('selected_week')
+    target_date = get_date_from_week(week_number, selected_weekday)
+    formatted_date = target_date.strftime("%d_%m_%Y")
+    
+    # Create Excel writer object
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        # Get workbook for formatting
+        workbook = writer.book
+        # Define formats
+        header_format = workbook.add_format({
+            'bold': True,
+            'text_wrap': True,
+            'valign': 'top',
+            'border': 1,  # Add border to all sides
+            'bg_color': '#f2f2f2'  # Light gray background
+        })
+        cell_format = workbook.add_format({
+            'text_wrap': True,
+            'valign': 'top'
+        })
+        
+        # Create a sheet for each route
+        for route in optimized_routes:
+            vehicle_name = route['vehicle']
+            
+            # Separate regular stops and TK stops
+            regular_stops = [stop for stop in route['stops'] if stop['visit_type'] != 'TK']
+            tk_stops = [stop for stop in route['stops'] if stop['visit_type'] == 'TK']
+            
+            # Create DataFrame for regular stops
+            regular_data = []
+            for i, stop in enumerate(regular_stops, 1):
+                regular_data.append({
+                    'Stop-Nr': i,
+                    'Patient': stop['patient'],
+                    'Besuchsart': stop['visit_type'],
+                    'Adresse': stop['address'],
+                    'Uhrzeit/Info': stop.get('time_info', ''),
+                    'Telefon': stop.get('phone_numbers', '').replace(',', '\n')
+                })
+            
+            if regular_data or tk_stops:  # Only create sheet if there are any stops
+                # Add route duration information at the top
+                duration_info = pd.DataFrame([{
+                    'Gesamtdauer': f"{route['duration_hrs']} / {route['max_hours']} Stunden",
+                    'Funktion': route['funktion']
+                }])
+                
+                # Write duration info
+                duration_info.to_excel(writer, sheet_name=vehicle_name, index=False, startrow=0)
+                
+                # Get worksheet object right after creating the sheet
+                worksheet = writer.sheets[vehicle_name]
+                
+                current_row = 3  # Start after duration info
+                
+                # Set column widths and formats
+                column_widths = {
+                    'Stop-Nr': 15,
+                    'Patient': 25,
+                    'Besuchsart': 25,
+                    'Adresse': 35,
+                    'Uhrzeit/Info': 20,
+                    'Telefon': 20
+                }
+                
+                # Write regular stops if any
+                if regular_data:
+                    regular_df = pd.DataFrame(regular_data)
+                    
+                    # Write "Hausbesuche" header with format
+                    hb_section_header = workbook.add_format({
+                        'bold': True,
+                        'font_size': 14,
+                        'align': 'center',
+                        'valign': 'vcenter'
+                    })
+                    # Merge cells for the section header
+                    worksheet.merge_range(current_row, 0, current_row, 5, 'Hausbesuche', hb_section_header)
+                    current_row += 1
+                    
+                    # Write column headers
+                    for idx, (col, width) in enumerate(column_widths.items()):
+                        worksheet.write(current_row, idx, col, header_format)
+                    current_row += 1
+                    
+                    # Write regular data without headers
+                    for row_idx, row_data in enumerate(regular_data):
+                        for col_idx, (key, value) in enumerate(row_data.items()):
+                            worksheet.write(current_row + row_idx, 
+                                         col_idx, 
+                                         value, 
+                                         cell_format)
+                    current_row += len(regular_data) + 2  # Add 2 for spacing
+                
+                # Write TK stops if any
+                if tk_stops:
+                    # Create DataFrame for TK stops with correct column order
+                    tk_data = []
+                    for stop in tk_stops:
+                        tk_data.append({
+                            'Patient': stop['patient'],
+                            'Besuchsart': 'TK',
+                            'Adresse': stop['address'],
+                            'Uhrzeit/Info': stop.get('time_info', ''),
+                            'Telefon': stop.get('phone_numbers', '').replace(',', '\n')
+                        })
+                    
+                    # Write "Telefonkontakte" header with format
+                    tk_section_header = workbook.add_format({
+                        'bold': True,
+                        'font_size': 14,
+                        'align': 'center',
+                        'valign': 'vcenter'
+                    })
+                    # Merge cells for the section header
+                    worksheet.merge_range(current_row, 0, current_row, 4, 'Telefonkontakte', tk_section_header)
+                    current_row += 1
+                    
+                    # Define TK columns and their order
+                    tk_columns = ['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']
+                    
+                    # Write column headers
+                    for idx, col in enumerate(tk_columns):
+                        worksheet.write(current_row, idx, col, header_format)
+                    current_row += 1
+                    
+                    # Write TK data in correct order
+                    for row_idx, data in enumerate(tk_data):
+                        for col_idx, col in enumerate(tk_columns):
+                            worksheet.write(current_row + row_idx, 
+                                         col_idx, 
+                                         data[col], 
+                                         cell_format)
+                
+                # Format all columns
+                for idx, (col, width) in enumerate(column_widths.items()):
+                    worksheet.set_column(idx, idx, width, cell_format)
+                
+                # Set row height for all rows to accommodate wrapped text
+                max_row = current_row + (len(tk_data) if tk_stops else 0)
+                for row in range(4, max_row + 2):
+                    worksheet.set_row(row, 30)
+
+        # Add unassigned TK cases to separate sheet if any exist
+        if unassigned_tk_stops:
+            tk_data = [{
+                'Patient': stop['patient'],
+                'Besuchsart': 'TK',
+                'Adresse': stop['address'],
+                'Uhrzeit/Info': stop.get('time_info', ''),
+                'Telefon': stop.get('phone_numbers', '').replace(',', '\n')
+            } for stop in unassigned_tk_stops]
+            
+            # Create empty sheet
+            worksheet = workbook.add_worksheet('Nicht zugeordnete TK')
+            current_row = 0  # Start from top
+            
+            # Write "Telefonkontakte" header with format
+            tk_section_header = workbook.add_format({
+                'bold': True,
+                'font_size': 14,
+                'align': 'center',
+                'valign': 'vcenter'
+            })
+            # Merge cells for the section header
+            worksheet.merge_range(current_row, 0, current_row, 4, 'Nicht zugeordnete Telefonkontakte', tk_section_header)
+            current_row += 1
+            
+            # Define TK columns and their order
+            tk_columns = ['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']
+            
+            # Write column headers
+            for idx, col in enumerate(tk_columns):
+                worksheet.write(current_row, idx, col, header_format)
+            current_row += 1
+            
+            # Write TK data in correct order
+            for row_idx, data in enumerate(tk_data):
+                for col_idx, col in enumerate(tk_columns):
+                    worksheet.write(current_row + row_idx, 
+                                 col_idx, 
+                                 data[col], 
+                                 cell_format)
+            
+            # Set column widths
+            column_widths = {
+                'Patient': 25,
+                'Besuchsart': 12,
+                'Adresse': 35,
+                'Uhrzeit/Info': 20,
+                'Telefon': 20
+            }
+            
+            # Format columns
+            for idx, (col, width) in enumerate(column_widths.items()):
+                worksheet.set_column(idx, idx, width, cell_format)
+            
+            # Set row height for all rows
+            max_row = current_row + len(tk_data)
+            for row in range(1, max_row + 1):
+                worksheet.set_row(row, 30)
+
+    # Prepare the file for sending
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'Optimierte_Routen_{formatted_date}_{selected_weekday}.xlsx'
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)

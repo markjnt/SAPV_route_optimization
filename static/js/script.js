@@ -828,7 +828,9 @@ function toggleInfo(id) {
 
 // Schließe Popups auch beim Klick außerhalb
 document.addEventListener('click', function(event) {
-    if (!event.target.closest('.info-popup') && !event.target.closest('.info-icon')) {
+    if (!event.target.closest('.info-popup') && 
+        !event.target.closest('.info-icon') && 
+        !event.target.closest('#exportButton')) {
         document.querySelectorAll('.info-popup').forEach(popup => {
             popup.style.display = 'none';
         });
@@ -848,3 +850,23 @@ async function loadSavedRoutes() {
         console.error("Fehler beim Laden der gespeicherten Routen:", error);
     }
 }
+
+document.getElementById('exportButton')?.addEventListener('click', async () => {
+    const tkContainer = document.querySelector('.stops-container[data-vehicle="tk"]');
+    const hasTKStops = tkContainer && tkContainer.querySelectorAll('.stop-card').length > 0;
+    
+    if (hasTKStops) {
+        // Show custom popup
+        document.getElementById('tk-confirmation').style.display = 'block';
+    } else {
+        // If no TK stops, proceed directly
+        window.location.href = '/export_routes';
+    }
+});
+
+// Add event listener for the confirm button
+document.getElementById('confirmExport')?.addEventListener('click', () => {
+    // Hide popup and trigger download
+    document.getElementById('tk-confirmation').style.display = 'none';
+    window.location.href = '/export_routes';
+});
