@@ -114,177 +114,189 @@ def show_vehicles():
 
 @app.route('/optimize_route', methods=['POST'])
 def optimize_route():
-    """
-    Routenoptimierung:
-    - Berücksichtigt nur aktive Fahrzeuge
-    - Trennung von TK und Nicht-TK Patienten
-    - Flottenrouting nur für Nicht-TK
-    - Berücksichtigung des Stellenumfangs als maximale Routenzeit
-    - Separate Rückgabe der TK-Fälle
-    """
-    optimization_client = routeoptimization_v1.RouteOptimizationClient()
-
-    # Prüfe ob Daten vorhanden
-    active_vehicles = [v for v in vehicles if v.is_active]
-    if not patients or not active_vehicles:
-        flash('Mindestens ein Patient und ein aktives Fahrzeug benötigt.', 'error')
-        return jsonify({'status': 'error'})
-
-    # Patienten nach Besuchstyp trennen
-    non_tk_patients = [p for p in patients if p.visit_type in ("Neuaufnahme", "HB")]
-    tk_patients    = [p for p in patients if p.visit_type == "TK"]
-
-    # Shipments für Nicht-TK erstellen
-    shipments = []
-    for patient in non_tk_patients:
-        duration_seconds = 0
-        if patient.visit_type == "HB":
-            duration_seconds = 2100  # 35 min
-        elif patient.visit_type == "Neuaufnahme":
-            duration_seconds = 7200  # 120 min
-        # sonst -> 0s
-
-        pickups = [{
-            "arrival_location": {
-                "latitude": patient.lat,
-                "longitude": patient.lon
-            },
-            "duration": f"{duration_seconds}s"
-        }]
-        shipments.append({"pickups": pickups})
-
-    # 3) Fahrzeuge: Berücksichtige Stellenumfang
-    vehicles_model = []
-    for v in active_vehicles:
-        stellenumfang = getattr(v, 'stellenumfang', 100)  
-        
-        # Berechne Sekunden (7 Stunden * Stellenumfang%)
-        seconds = int((stellenumfang / 100.0) * 7 * 3600)
-        
-        vehicle_model = {
-            "start_location": {
-                "latitude": v.lat,
-                "longitude": v.lon
-            },
-            "end_location": {
-                "latitude": v.lat,
-                "longitude": v.lon
-            },
-            "cost_per_hour": 1,
-            "route_duration_limit": {
-                "max_duration": f"{seconds}s"
-            }
-        }
-        vehicles_model.append(vehicle_model)
-
-    # Request zusammenstellen
-    selected_weekday = get_selected_weekday()
-    week_number = session.get('selected_week')
-    
-    fleet_routing_request = routeoptimization_v1.OptimizeToursRequest({
-        "parent": "projects/routenplanung-sapv",
-        "model": {
-            "shipments": shipments,
-            "vehicles": vehicles_model,
-            "global_start_time": get_start_time(selected_weekday, week_number),
-            "global_end_time": get_end_time(selected_weekday, week_number)
-        }
-    })
-
-    # Aufruf der Optimierung
     try:
-        response = optimization_client.optimize_tours(fleet_routing_request)
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Optimierungsfehler: {str(e)}'
-        })
+        # Nur aktive Pflegekräfte für die initiale Optimierung verwenden
+        available_vehicles = [v for v in vehicles if v.is_active and v.funktion == 'Pflegekraft']
+        
+        # Alle aktiven Mitarbeiter für die Container-Erstellung
+        all_active_vehicles = [v for v in vehicles if v.is_active]
+        
+        if not available_vehicles:
+            return jsonify({
+                'status': 'error',
+                'message': 'Keine aktiven Pflegekräfte verfügbar.'
+            })
 
-    try:
-        # Routen extrahieren
-        global optimized_routes
-        optimized_routes = []
-        for i, route in enumerate(response.routes):
-            start_dt = route.vehicle_start_time
-            end_dt   = route.vehicle_end_time
+        optimization_client = routeoptimization_v1.RouteOptimizationClient()
 
-            # Debug im Terminal
-            if start_dt and end_dt:
-                duration_sec = (end_dt - start_dt).total_seconds()
-                duration_hrs = duration_sec / 3600.0
-                print(f"Fahrzeug {i} => "
-                      f"Start: {start_dt}, Ende: {end_dt}, "
-                      f"Dauer: {duration_hrs:.2f} h, "
-                      f"Name: {active_vehicles[route.vehicle_index].name}")
-            else:
-                duration_hrs = 0
-                print(f"Fahrzeug {i} => None start/end (nicht genutzt?)")
+        # Prüfe ob Daten vorhanden
+        if not patients or not available_vehicles:
+            flash('Mindestens ein Patient und eine aktive Pflegekraft benötigt.', 'error')
+            return jsonify({'status': 'error'})
 
-            v_index = route.vehicle_index
-            vehicle = active_vehicles[v_index]
-            # Berechne max_hours basierend auf Stellenumfang (100% = 7h)
-            max_hours = round((getattr(vehicle, 'stellenumfang', 100) / 100.0) * 7, 2)
-            
-            route_info = {
-                "vehicle": vehicle.name,
-                "funktion": vehicle.funktion,
-                "duration_hrs": round(duration_hrs, 2),
-                "max_hours": max_hours,
-                "vehicle_start": {
-                    "lat": vehicle.lat,
-                    "lng": vehicle.lon
+        # Patienten nach Besuchstyp trennen
+        non_tk_patients = [p for p in patients if p.visit_type in ("Neuaufnahme", "HB")]
+        tk_patients    = [p for p in patients if p.visit_type == "TK"]
+
+        # Shipments für Nicht-TK erstellen
+        shipments = []
+        for patient in non_tk_patients:
+            duration_seconds = 0
+            if patient.visit_type == "HB":
+                duration_seconds = 2100  # 35 min
+            elif patient.visit_type == "Neuaufnahme":
+                duration_seconds = 7200  # 120 min
+            # sonst -> 0s
+
+            pickups = [{
+                "arrival_location": {
+                    "latitude": patient.lat,
+                    "longitude": patient.lon
                 },
-                "stops": []
-            }
+                "duration": f"{duration_seconds}s"
+            }]
+            shipments.append({"pickups": pickups})
 
-            # Besuche => non_tk_patients
-            for visit in route.visits:
-                p_idx = visit.shipment_index
-                if p_idx >= 0:
-                    p = non_tk_patients[p_idx]
-                    route_info["stops"].append({
-                        "patient": p.name,
-                        "address": p.address,
-                        "visit_type": p.visit_type,
-                        "time_info": p.time_info,
-                        "phone_numbers": p.phone_numbers,
-                        "location": {
-                            "lat": p.lat,
-                            "lng": p.lon
-                        }
-                    })
-
-            optimized_routes.append(route_info)
-
-        # 5) TK-Fälle als Liste
-        global unassigned_tk_stops
-        tk_list = [
-            {
-                "patient": tk.name,
-                "address": tk.address,
-                "visit_type": tk.visit_type,
-                "time_info": tk.time_info,
-                "phone_numbers": tk.phone_numbers,
-                "location": {
-                    "lat": tk.lat,
-                    "lng": tk.lon
+        # 3) Fahrzeuge: Berücksichtige Stellenumfang
+        vehicles_model = []
+        for v in available_vehicles:
+            stellenumfang = getattr(v, 'stellenumfang', 100)  
+            
+            # Berechne Sekunden (7 Stunden * Stellenumfang%)
+            seconds = int((stellenumfang / 100.0) * 7 * 3600)
+            
+            vehicle_model = {
+                "start_location": {
+                    "latitude": v.lat,
+                    "longitude": v.lon
+                },
+                "end_location": {
+                    "latitude": v.lat,
+                    "longitude": v.lon
+                },
+                "cost_per_hour": 1,
+                "route_duration_limit": {
+                    "max_duration": f"{seconds}s"
                 }
             }
-            for tk in tk_patients
-        ]
-        unassigned_tk_stops = tk_list
+            vehicles_model.append(vehicle_model)
 
-        return jsonify({
-            'status': 'success',
-            'routes': optimized_routes,
-            'tk_patients': tk_list
+        # Request zusammenstellen
+        selected_weekday = get_selected_weekday()
+        week_number = session.get('selected_week')
+        
+        fleet_routing_request = routeoptimization_v1.OptimizeToursRequest({
+            "parent": "projects/routenplanung-sapv",
+            "model": {
+                "shipments": shipments,
+                "vehicles": vehicles_model,
+                "global_start_time": get_start_time(selected_weekday, week_number),
+                "global_end_time": get_end_time(selected_weekday, week_number)
+            }
         })
+
+        # Aufruf der Optimierung
+        try:
+            response = optimization_client.optimize_tours(fleet_routing_request)
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Optimierungsfehler: {str(e)}'
+            })
+
+        try:
+            # Routen extrahieren
+            global optimized_routes
+            optimized_routes = []
+            
+            # Zuerst leere Container für alle aktiven Mitarbeiter erstellen
+            for vehicle in all_active_vehicles:
+                max_hours = round((getattr(vehicle, 'stellenumfang', 100) / 100.0) * 7, 2)
+                route_info = {
+                    "vehicle": vehicle.name,
+                    "funktion": vehicle.funktion,
+                    "duration_hrs": 0,
+                    "max_hours": max_hours,
+                    "vehicle_start": {
+                        "lat": vehicle.lat,
+                        "lng": vehicle.lon
+                    },
+                    "stops": []
+                }
+                optimized_routes.append(route_info)
+            
+            # Dann die optimierten Routen den entsprechenden Pflegekräften zuweisen
+            for i, route in enumerate(response.routes):
+                start_dt = route.vehicle_start_time
+                end_dt = route.vehicle_end_time
+
+                if start_dt and end_dt:
+                    duration_sec = (end_dt - start_dt).total_seconds()
+                    duration_hrs = duration_sec / 3600.0
+                    print(f"Fahrzeug {i} => "
+                          f"Start: {start_dt}, Ende: {end_dt}, "
+                          f"Dauer: {duration_hrs:.2f} h, "
+                          f"Name: {available_vehicles[route.vehicle_index].name}")
+                else:
+                    duration_hrs = 0
+                    print(f"Fahrzeug {i} => None start/end (nicht genutzt?)")
+
+                v_index = route.vehicle_index
+                vehicle = available_vehicles[v_index]
+                
+                # Finde den entsprechenden Container in optimized_routes
+                route_container = next(r for r in optimized_routes if r["vehicle"] == vehicle.name)
+                route_container["duration_hrs"] = round(duration_hrs, 2)
+
+                # Besuche => non_tk_patients
+                for visit in route.visits:
+                    p_idx = visit.shipment_index
+                    if p_idx >= 0:
+                        p = non_tk_patients[p_idx]
+                        route_container["stops"].append({
+                            "patient": p.name,
+                            "address": p.address,
+                            "visit_type": p.visit_type,
+                            "time_info": p.time_info,
+                            "phone_numbers": p.phone_numbers,
+                            "location": {
+                                "lat": p.lat,
+                                "lng": p.lon
+                            }
+                        })
+
+            # 5) TK-Fälle als Liste
+            global unassigned_tk_stops
+            tk_list = [
+                {
+                    "patient": tk.name,
+                    "address": tk.address,
+                    "visit_type": tk.visit_type,
+                    "time_info": tk.time_info,
+                    "phone_numbers": tk.phone_numbers,
+                    "location": {
+                        "lat": tk.lat,
+                        "lng": tk.lon
+                    }
+                }
+                for tk in tk_patients
+            ]
+            unassigned_tk_stops = tk_list
+
+            return jsonify({
+                'status': 'success',
+                'routes': optimized_routes,
+                'tk_patients': tk_list
+            })
+
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Serverfehler: {str(e)}'
+            })
 
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Serverfehler: {str(e)}'
-        })
+        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/update_routes', methods=['POST'])
 def update_routes():
@@ -294,6 +306,7 @@ def update_routes():
         data = request.get_json()
         optimized_routes = []
         
+        # Alle aktiven Mitarbeiter berücksichtigen
         active_vehicles = [v for v in vehicles if v.is_active]
         
         # Reguläre Routen verarbeiten
