@@ -477,7 +477,7 @@ function displayRoutes(data) {
     tkCard.className = 'route-card tk-card';
     
     const tkHeader = document.createElement('h3');
-    tkHeader.textContent = 'Nicht zugeordnete TK-Fälle';
+    tkHeader.textContent = 'Nicht zugeordnete Telefonkontakte';
     tkCard.appendChild(tkHeader);
     
     const tkContainer = document.createElement('div');
@@ -598,84 +598,93 @@ async function handleDrop(e) {
     const draggingElement = document.querySelector('.dragging');
     
     if (draggingElement) {
-        const container = e.target.closest('.stops-container');
-        if (container) {
-            const isTKContainer = container.getAttribute('data-vehicle') === 'tk';
-            const isTKStop = draggingElement.classList.contains('tk-stop');
-            
-            if (isTKContainer && !isTKStop) {
-                return;
-            }
+        const targetContainer = e.target.closest('.stops-container');
+        if (!targetContainer) return;
 
-            // Entferne Drop-Indikatoren
-            container.querySelectorAll('.drop-indicator').forEach(el => el.remove());
-            
-            // Füge das Element hinzu
-            if (isTKStop) {
-                container.appendChild(draggingElement);
+        const sourceContainer = draggingElement.closest('.stops-container');
+        if (!sourceContainer) return;
+
+        const isTKContainer = targetContainer.getAttribute('data-vehicle') === 'tk';
+        const isTKStop = draggingElement.classList.contains('tk-stop');
+        
+        if (isTKContainer && !isTKStop) {
+            return;
+        }
+
+        // Entferne Drop-Indikatoren
+        targetContainer.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        
+        // Füge das Element hinzu
+        if (isTKStop) {
+            targetContainer.appendChild(draggingElement);
+        } else {
+            const afterElement = getDropPosition(targetContainer, e.clientY, isTKStop);
+            if (afterElement) {
+                afterElement.before(draggingElement);
             } else {
-                const afterElement = getDropPosition(container, e.clientY, isTKStop);
-                if (afterElement) {
-                    afterElement.before(draggingElement);
+                const tkStops = targetContainer.querySelectorAll('.tk-stop');
+                if (tkStops.length > 0) {
+                    tkStops[0].before(draggingElement);
                 } else {
-                    const tkStops = container.querySelectorAll('.tk-stop');
-                    if (tkStops.length > 0) {
-                        tkStops[0].before(draggingElement);
-                    } else {
-                        container.appendChild(draggingElement);
-                    }
+                    targetContainer.appendChild(draggingElement);
                 }
             }
+        }
+        
+        // Aktualisiere die Stoppnummern
+        updateStopNumbers();
+        
+        // Sammle nur die betroffenen Container für die Routenberechnung
+        const containersToUpdate = new Set();
+        if (!isTKContainer) containersToUpdate.add(targetContainer);
+        if (sourceContainer !== targetContainer && sourceContainer.getAttribute('data-vehicle') !== 'tk') {
+            containersToUpdate.add(sourceContainer);
+        }
+
+        const routePromises = [];
+        
+        // Aktualisiere nur die Routen für die betroffenen Container
+        containersToUpdate.forEach(container => {
+            const routeCard = container.closest('.route-card');
+            const routeColor = routeCard.style.borderColor;
+            const regularStops = [...container.querySelectorAll('.stop-card:not(.tk-stop)')];
             
-            // Aktualisiere die Stoppnummern
-            updateStopNumbers();
-            
-            // Sammle alle Routenberechnungen
-            const routePromises = [];
-            
-            // Aktualisiere die Routen für alle Container
-            document.querySelectorAll('.stops-container:not([data-vehicle="tk"])').forEach(cont => {
-                const routeCard = cont.closest('.route-card');
-                const routeColor = routeCard.style.borderColor;
-                const regularStops = [...cont.querySelectorAll('.stop-card:not(.tk-stop)')];
+            if (regularStops.length === 0) {
+                updateRouteDuration(routeCard, 0);
+            } else {
+                const origin = new google.maps.LatLng(
+                    routeCard.dataset.vehicleStartLat, 
+                    routeCard.dataset.vehicleStartLng
+                );
                 
-                if (regularStops.length === 0) {
-                    updateRouteDuration(routeCard, 0);
-                } else {
-                    const origin = new google.maps.LatLng(
-                        routeCard.dataset.vehicleStartLat, 
-                        routeCard.dataset.vehicleStartLng
-                    );
-                    
-                    const waypoints = regularStops.map(stop => ({
-                        location: new google.maps.LatLng(
-                            parseFloat(stop.querySelector('[data-lat]').dataset.lat),
-                            parseFloat(stop.querySelector('[data-lat]').dataset.lng)
-                        ),
-                        stopover: true
-                    }));
+                const waypoints = regularStops.map(stop => ({
+                    location: new google.maps.LatLng(
+                        parseFloat(stop.querySelector('[data-lat]').dataset.lat),
+                        parseFloat(stop.querySelector('[data-lat]').dataset.lng)
+                    ),
+                    stopover: true
+                }));
 
-                    const request = {
-                        origin: origin,
-                        destination: origin,
-                        waypoints: waypoints,
-                        travelMode: google.maps.TravelMode.DRIVING,
-                        optimizeWaypoints: false
-                    };
+                const request = {
+                    origin: origin,
+                    destination: origin,
+                    waypoints: waypoints,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    optimizeWaypoints: false
+                };
 
-                    routePromises.push(calculateRoute(request, routeColor, routeCard));
-                }
-            });
-
-            try {
-                // Warte auf alle Routenberechnungen
-                await Promise.all(routePromises);
-                
-                // Jetzt erst die optimierten Routen aktualisieren
-                updateOptimizedRoutes();
-            } catch (error) {
-                console.error('Fehler bei der Routenberechnung:', error);
+                routePromises.push(calculateRoute(request, routeColor, routeCard));
             }
+        });
+
+        try {
+            // Warte auf die Routenberechnungen der betroffenen Container
+            await Promise.all(routePromises);
+            
+            // Aktualisiere die optimierten Routen
+            updateOptimizedRoutes();
+        } catch (error) {
+            console.error('Fehler bei der Routenberechnung:', error);
         }
     }
 }
