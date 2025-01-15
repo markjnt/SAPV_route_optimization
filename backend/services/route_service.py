@@ -1,12 +1,12 @@
 from google.maps import routeoptimization_v1
-from datetime import datetime
-from backend.handlers.date_time_handler import get_start_time, get_end_time
+from backend.services.date_time_service import DateTimeService
 from backend.models import patients, vehicles
 
 class RouteOptimizationService:
     def __init__(self, project_id="routenplanung-sapv"):
         self.project_id = project_id
         self.client = routeoptimization_v1.RouteOptimizationClient()
+        self.date_time_service = DateTimeService()
 
     def optimize_routes(self, non_tk_patients, available_vehicles, selected_weekday, week_number):
         """Optimiert die Routen für die gegebenen Patienten und Fahrzeuge"""
@@ -23,9 +23,10 @@ class RouteOptimizationService:
             "model": {
                 "shipments": shipments,
                 "vehicles": vehicles_model,
-                "global_start_time": get_start_time(selected_weekday, week_number),
-                "global_end_time": get_end_time(selected_weekday, week_number)
-            }
+                "global_start_time": self.date_time_service.get_start_time(selected_weekday, week_number),
+                "global_end_time": self.date_time_service.get_end_time(selected_weekday, week_number)
+            },
+            "consider_road_traffic": True
         })
         
         return self.client.optimize_tours(request)

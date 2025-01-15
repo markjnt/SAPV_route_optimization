@@ -28,20 +28,12 @@ class DateTimeService:
 
     @staticmethod
     def get_start_time(weekday_name: str, week_number: int = None) -> str:
-        if week_number is None:
-            current_date = datetime.utcnow()
-            week_number = int(current_date.strftime('%W'))
-        
         target_date = DateTimeService.get_date_from_week(week_number, weekday_name)
         start_time = datetime(target_date.year, target_date.month, target_date.day, 8, 0, 0)
         return start_time.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
     @staticmethod
     def get_end_time(weekday_name: str, week_number: int = None) -> str:
-        if week_number is None:
-            current_date = datetime.utcnow()
-            week_number = int(current_date.strftime('%W'))
-        
         target_date = DateTimeService.get_date_from_week(week_number, weekday_name)
         end_time = datetime(target_date.year, target_date.month, target_date.day, 16, 0, 0)
         return end_time.strftime("%Y-%m-%dT%H:%M:%S") + "Z" 
