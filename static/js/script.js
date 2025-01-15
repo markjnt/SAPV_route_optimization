@@ -362,7 +362,8 @@ function displayRoutes(data) {
         
         // Fahrzeug-Header mit Duration aus dem Backend
         const vehicleHeader = document.createElement('h3');
-        const durationColor = route.duration_hrs || 0 <= route.max_hours ? 'green' : 'red';
+        const durationColor = (route.duration_hrs || 0) <= route.max_hours ? 'green' : 'red';
+
         vehicleHeader.innerHTML = `
             <div class="name-function-line">
                 <span>${route.vehicle}</span>
@@ -459,44 +460,47 @@ function displayRoutes(data) {
     });
     
     // Nicht zugeordnete TK-Patienten separat anzeigen
-    const tkCard = document.createElement('div');
-    tkCard.className = 'route-card tk-card';
-    
-    const tkHeader = document.createElement('h3');
-    tkHeader.textContent = 'Nicht zugeordnete TK-Fälle';
-    tkCard.appendChild(tkHeader);
-    
-    const tkContainer = document.createElement('div');
-    tkContainer.className = 'stops-container';
-    tkContainer.setAttribute('data-vehicle', 'tk');
-    
-    data.tk_patients.forEach(tk => {
-        const tkStop = document.createElement('div');
-        tkStop.className = 'stop-card tk-stop';
-        tkStop.draggable = true;
-        tkStop.innerHTML = `
-            <div class="patient-info">
-                <div class="name-line tk">
-                    <strong>${tk.patient}</strong>
-                    <span class="visit-type">TK</span>
+    if (data.tk_patients && data.tk_patients.length > 0) {
+        const tkCard = document.createElement('div');
+        tkCard.className = 'route-card tk-card';
+        
+        const tkHeader = document.createElement('h3');
+        tkHeader.textContent = 'Nicht zugeordnete TK-Fälle';
+        tkCard.appendChild(tkHeader);
+        
+        const tkContainer = document.createElement('div');
+        tkContainer.className = 'stops-container';
+        tkContainer.setAttribute('data-vehicle', 'tk');
+        
+        data.tk_patients.forEach(tk => {
+            const tkStop = document.createElement('div');
+            tkStop.className = 'stop-card tk-stop';
+            tkStop.draggable = true;
+            tkStop.innerHTML = `
+                <div class="patient-info">
+                    <div class="name-line tk">
+                        <strong>${tk.patient}</strong>
+                        <span class="visit-type">TK</span>
+                    </div>
+                    <div class="address">${tk.address}</div>
+                    <div class="time-info">${tk.time_info || ''}</div>
+                    <div style="display:none" data-lat="${tk.location?.lat}" data-lng="${tk.location?.lng}"></div>
+                    <div style="display:none" data-phone="${tk.phone_numbers || ''}"></div>
                 </div>
-                <div class="address">${tk.address}</div>
-                <div class="time-info">${tk.time_info || ''}</div>
-                <div style="display:none" data-lat="${tk.location?.lat}" data-lng="${tk.location?.lng}"></div>
-                <div style="display:none" data-phone="${tk.phone_numbers || ''}"></div>
-            </div>
-        `;
+            `;
+            
+            tkStop.addEventListener('dragstart', handleDragStart);
+            tkStop.addEventListener('dragend', handleDragEnd);
+            
+            tkContainer.appendChild(tkStop);
+        });
         
-        tkStop.addEventListener('dragstart', handleDragStart);
-        tkStop.addEventListener('dragend', handleDragEnd);
+        tkCard.appendChild(tkContainer);
+        routesContainer.appendChild(tkCard);
         
-        tkContainer.appendChild(tkStop);
-    });
-    
-    tkCard.appendChild(tkContainer);
-    routesContainer.appendChild(tkCard);
-    
-    routeResults.appendChild(routesContainer);
+        routeResults.appendChild(routesContainer);
+    }
+
     
     document.querySelectorAll('.stops-container').forEach(container => {
         container.addEventListener('dragover', handleDragOver);
