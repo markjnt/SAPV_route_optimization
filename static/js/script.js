@@ -1,4 +1,6 @@
-// Globale Variablen
+// ==========================================
+// Konfiguration und Globale Variablen
+// ==========================================
 let map;                        // Google Maps Objekt
 let markers = [];               // Alle aktuellen Marker
 let directionsRenderers = [];   // DirectionsRenderer für Routen
@@ -20,17 +22,19 @@ const VISIT_DWELL_TIMES = {
     'Neuaufnahme': 120 * 60 // 120 Minuten in Sekunden
 };
 
+// ==========================================
+// Google Maps Funktionen
+// ==========================================
 window.onload = initMap();
 
-// Google Maps initialisieren und Marker laden
 function initMap() {
-  map = new google.maps.Map(document.getElementById('map'), {
-    center: { lat: 51.0237509, lng: 7.535209399 },
-    zoom: 9,
-    streetViewControl: false,
-    mapTypeControl: false
-  });
-  loadMarkers();
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 51.0237509, lng: 7.535209399 },
+        zoom: 9,
+        streetViewControl: false,
+        mapTypeControl: false
+    });
+    loadMarkers();
 }
 
 // Marker vom Server laden
@@ -159,14 +163,14 @@ async function loadMarkers() {
 
 // Alle Marker löschen
 function clearMarkers() {
-  markers.forEach(marker => marker.setMap(null));
-  markers = [];
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
 }
 
 // Alle Routen löschen
 function clearRoutes() {
-  directionsRenderers.forEach(renderer => renderer.setMap(null));
-  directionsRenderers = [];
+    directionsRenderers.forEach(renderer => renderer.setMap(null));
+    directionsRenderers = [];
 }
 
 // Route berechnen mit DirectionsService
@@ -312,7 +316,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Optimierte Routen anzeigen
+// ==========================================
+// Routen-Management
+// ==========================================
 function displayRoutes(data) {
     clearRoutes();
     // Aktualisiere die Marker-Labels für die neuen Routen
@@ -498,7 +504,9 @@ function displayRoutes(data) {
     });
 }
 
-// Drag & Drop functions
+// ==========================================
+// Drag & Drop Funktionalität
+// ==========================================
 function handleDragStart(e) {
     e.target.classList.add('dragging');
     e.dataTransfer.setData('text/plain', e.target.innerHTML);
@@ -808,6 +816,10 @@ function updateRouteDuration(routeCard, durationHrs = 0) {
     routeCard.dataset.durationHrs = durationHrs;
 }
 
+
+// ==========================================
+// UI Event Handler
+// ==========================================
 function toggleInfo(id) {
     // Schließe zuerst alle Popups
     document.querySelectorAll('.info-popup').forEach(popup => {
@@ -832,7 +844,9 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Funktion zum Laden der gespeicherten Routen
+// ==========================================
+// Routen-Export
+// ==========================================
 async function loadSavedRoutes() {
     try {
         const response = await fetch('/get_saved_routes');
@@ -859,7 +873,6 @@ document.getElementById('exportButton')?.addEventListener('click', async () => {
     }
 });
 
-// Add event listener for the confirm button
 document.getElementById('confirmExport')?.addEventListener('click', () => {
     // Hide popup and trigger download
     document.getElementById('tk-confirmation').style.display = 'none';

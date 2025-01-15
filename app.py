@@ -1,19 +1,16 @@
 import os
-from flask import Flask, render_template, request, jsonify, session, flash, send_file
-from google.maps import routeoptimization_v1
-from datetime import datetime
-from backend.FileHandler import *
-from backend.RouteHandler import get_start_time, get_end_time, get_date_from_week
+from flask import Flask, render_template, request, jsonify, flash, send_file
+from backend.handlers import (
+    handle_patient_upload, 
+    handle_vehicle_upload, 
+    get_date_from_week,
+    reload_patients_for_weekday
+)
+from backend.services.pdf_service import create_route_pdf
+from backend.services.route_service import RouteOptimizationService
+from backend.services.session_service import SessionService
+from backend.models import patients, vehicles
 from config import *
-from io import BytesIO
-import pandas as pd
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.units import cm
 
 # Google Cloud Service Account Authentifizierung
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
@@ -21,18 +18,13 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
 app = Flask(__name__)
 app.secret_key = '4c4bbaed949dc88d23335ca574e42aef00206906972c27a8015b2be0735033534'
 
-# Globale Variable für optimierte Routen
+# Services initialisieren
+route_optimization_service = RouteOptimizationService()
+session_service = SessionService()
+
+# Globale Variablen für optimierte Routen
 optimized_routes = []
-unassigned_tk_stops = []  # Speichert nicht zugeordnete TK-Fälle
-
-def get_selected_weekday():
-    return session.get('selected_weekday', 'Montag')
-
-def set_selected_weekday(weekday):
-    if 'selected_weekday' not in session:
-        session['selected_weekday'] = 'Montag'
-    else:
-        session['selected_weekday'] = weekday
+unassigned_tk_stops = []
 
 @app.route('/update-weekday', methods=['POST'])
 def update_weekday():
@@ -40,8 +32,7 @@ def update_weekday():
         data = request.get_json()
         weekday = data.get('weekday')
         if weekday:
-            set_selected_weekday(weekday)
-            # Lade die Patienten für den neuen Wochentag neu
+            session_service.set_selected_weekday(weekday)
             reload_patients_for_weekday(weekday)
             return jsonify({
                 'status': 'success', 
@@ -51,13 +42,6 @@ def update_weekday():
         return jsonify({'status': 'error', 'message': 'No weekday provided'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
-
-def reload_patients_for_weekday(weekday):
-    """Lädt die Patienten für den angegebenen Wochentag neu"""
-    global patients
-    patients.clear()
-    if hasattr(app, 'last_patient_upload'):
-        handle_patient_upload(app.last_patient_upload, weekday)
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
@@ -75,6 +59,48 @@ def upload_file():
         google_maps_api_key=GOOGLE_MAPS_API_KEY,
         saved_routes=optimized_routes
     )
+
+@app.route('/optimize_route', methods=['POST'])
+def optimize_route():
+    try:
+        # Validierung
+        is_valid, error_message = route_optimization_service.validate_optimization_input(vehicles, patients)
+        if not is_valid:
+            flash(error_message, 'error')
+            return jsonify({'status': 'error', 'message': error_message})
+
+        # Fahrzeuge und Patienten filtern
+        available_vehicles = [v for v in vehicles if v.is_active and v.funktion == 'Pflegekraft']
+        all_active_vehicles = [v for v in vehicles if v.is_active]
+        non_tk_patients = [p for p in patients if p.visit_type in ("Neuaufnahme", "HB")]
+        tk_patients = [p for p in patients if p.visit_type == "TK"]
+
+        # Optimierung durchführen
+        response = route_optimization_service.optimize_routes(
+            non_tk_patients,
+            available_vehicles,
+            session_service.get_selected_weekday(),
+            session_service.get_selected_week()
+        )
+
+        # Ergebnis verarbeiten
+        global optimized_routes, unassigned_tk_stops
+        optimized_routes, unassigned_tk_stops = route_optimization_service.process_optimization_result(
+            response,
+            available_vehicles,
+            all_active_vehicles,
+            non_tk_patients,
+            tk_patients
+        )
+
+        return jsonify({
+            'status': 'success',
+            'routes': optimized_routes,
+            'tk_patients': unassigned_tk_stops
+        })
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/get_markers')
 def get_markers():
@@ -104,8 +130,8 @@ def get_markers():
 
 @app.route('/patients', methods=['GET', 'POST'])
 def show_patients():
-    selected_weekday = get_selected_weekday()
-    week_number = session.get('selected_week')
+    selected_weekday = session_service.get_selected_weekday()
+    week_number = session_service.get_selected_week()
     date = get_date_from_week(week_number, selected_weekday)
     return render_template('show_patient.html',
                            patients=patients,
@@ -114,198 +140,6 @@ def show_patients():
 @app.route('/vehicles')
 def show_vehicles():
     return render_template('show_vehicle.html', vehicles=vehicles)
-
-@app.route('/optimize_route', methods=['POST'])
-def optimize_route():
-    try:
-        # Prüfe zuerst, ob überhaupt aktive Pflegekräfte verfügbar sind
-        has_active_nurses = any(v.is_active and v.funktion == 'Pflegekraft' for v in vehicles)
-        if not has_active_nurses:
-            flash('Es muss mindestens eine aktive Pflegekraft verfügbar sein.', 'error')
-            return jsonify({
-                'status': 'error',
-                'message': 'Keine aktiven Pflegekräfte verfügbar.'
-            })
-
-        # Nur aktive Pflegekräfte für die initiale Optimierung verwenden
-        available_vehicles = [v for v in vehicles if v.is_active and v.funktion == 'Pflegekraft']
-        
-        # Alle aktiven Mitarbeiter für die Container-Erstellung
-        all_active_vehicles = [v for v in vehicles if v.is_active]
-
-        # Prüfe ob Patienten vorhanden sind
-        if not patients:
-            flash('Es muss mindestens ein Patient vorhanden sein.', 'error')
-            return jsonify({
-                'status': 'error',
-                'message': 'Keine Patienten gefunden.'
-            })
-
-        optimization_client = routeoptimization_v1.RouteOptimizationClient()
-
-        # Patienten nach Besuchstyp trennen
-        non_tk_patients = [p for p in patients if p.visit_type in ("Neuaufnahme", "HB")]
-        tk_patients    = [p for p in patients if p.visit_type == "TK"]
-
-        # Shipments für Nicht-TK erstellen
-        shipments = []
-        for patient in non_tk_patients:
-            duration_seconds = 0
-            if patient.visit_type == "HB":
-                duration_seconds = 2100  # 35 min
-            elif patient.visit_type == "Neuaufnahme":
-                duration_seconds = 7200  # 120 min
-            # sonst -> 0s
-
-            pickups = [{
-                "arrival_location": {
-                    "latitude": patient.lat,
-                    "longitude": patient.lon
-                },
-                "duration": f"{duration_seconds}s"
-            }]
-            shipments.append({"pickups": pickups})
-
-        # 3) Fahrzeuge: Berücksichtige Stellenumfang
-        vehicles_model = []
-        for v in available_vehicles:
-            stellenumfang = getattr(v, 'stellenumfang', 100)  
-            
-            # Berechne Sekunden (7 Stunden * Stellenumfang%)
-            seconds = int((stellenumfang / 100.0) * 7 * 3600)
-            
-            vehicle_model = {
-                "start_location": {
-                    "latitude": v.lat,
-                    "longitude": v.lon
-                },
-                "end_location": {
-                    "latitude": v.lat,
-                    "longitude": v.lon
-                },
-                "cost_per_hour": 1,
-                "route_duration_limit": {
-                    "max_duration": f"{seconds}s"
-                }
-            }
-            vehicles_model.append(vehicle_model)
-
-        # Request zusammenstellen
-        selected_weekday = get_selected_weekday()
-        week_number = session.get('selected_week')
-        
-        fleet_routing_request = routeoptimization_v1.OptimizeToursRequest({
-            "parent": "projects/routenplanung-sapv",
-            "model": {
-                "shipments": shipments,
-                "vehicles": vehicles_model,
-                "global_start_time": get_start_time(selected_weekday, week_number),
-                "global_end_time": get_end_time(selected_weekday, week_number)
-            }
-        })
-
-        # Aufruf der Optimierung
-        try:
-            response = optimization_client.optimize_tours(fleet_routing_request)
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': f'Optimierungsfehler: {str(e)}'
-            })
-
-        try:
-            # Routen extrahieren
-            global optimized_routes
-            optimized_routes = []
-            
-            # Zuerst leere Container für alle aktiven Mitarbeiter erstellen
-            for vehicle in all_active_vehicles:
-                max_hours = round((getattr(vehicle, 'stellenumfang', 100) / 100.0) * 7, 2)
-                route_info = {
-                    "vehicle": vehicle.name,
-                    "funktion": vehicle.funktion,
-                    "duration_hrs": 0,
-                    "max_hours": max_hours,
-                    "vehicle_start": {
-                        "lat": vehicle.lat,
-                        "lng": vehicle.lon
-                    },
-                    "stops": []
-                }
-                optimized_routes.append(route_info)
-            
-            # Dann die optimierten Routen den entsprechenden Pflegekräften zuweisen
-            for i, route in enumerate(response.routes):
-                start_dt = route.vehicle_start_time
-                end_dt = route.vehicle_end_time
-
-                if start_dt and end_dt:
-                    duration_sec = (end_dt - start_dt).total_seconds()
-                    duration_hrs = duration_sec / 3600.0
-                    print(f"Fahrzeug {i} => "
-                          f"Start: {start_dt}, Ende: {end_dt}, "
-                          f"Dauer: {duration_hrs:.2f} h, "
-                          f"Name: {available_vehicles[route.vehicle_index].name}")
-                else:
-                    duration_hrs = 0
-                    print(f"Fahrzeug {i} => None start/end (nicht genutzt?)")
-
-                v_index = route.vehicle_index
-                vehicle = available_vehicles[v_index]
-                
-                # Finde den entsprechenden Container in optimized_routes
-                route_container = next(r for r in optimized_routes if r["vehicle"] == vehicle.name)
-                route_container["duration_hrs"] = round(duration_hrs, 2)
-
-                # Besuche => non_tk_patients
-                for visit in route.visits:
-                    p_idx = visit.shipment_index
-                    if p_idx >= 0:
-                        p = non_tk_patients[p_idx]
-                        route_container["stops"].append({
-                            "patient": p.name,
-                            "address": p.address,
-                            "visit_type": p.visit_type,
-                            "time_info": p.time_info,
-                            "phone_numbers": p.phone_numbers,
-                            "location": {
-                                "lat": p.lat,
-                                "lng": p.lon
-                            }
-                        })
-
-            # 5) TK-Fälle als Liste
-            global unassigned_tk_stops
-            tk_list = [
-                {
-                    "patient": tk.name,
-                    "address": tk.address,
-                    "visit_type": tk.visit_type,
-                    "time_info": tk.time_info,
-                    "phone_numbers": tk.phone_numbers,
-                    "location": {
-                        "lat": tk.lat,
-                        "lng": tk.lon
-                    }
-                }
-                for tk in tk_patients
-            ]
-            unassigned_tk_stops = tk_list
-
-            return jsonify({
-                'status': 'success',
-                'routes': optimized_routes,
-                'tk_patients': tk_list
-            })
-
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': f'Serverfehler: {str(e)}'
-            })
-
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/update_routes', methods=['POST'])
 def update_routes():
@@ -349,7 +183,7 @@ def update_routes():
 
 @app.route('/get-current-weekday')
 def get_current_weekday():
-    return jsonify({'weekday': get_selected_weekday()})
+    return jsonify({'weekday': session_service.get_selected_weekday()})
 
 @app.route('/get_saved_routes')
 def get_saved_routes():
@@ -380,189 +214,21 @@ def update_vehicle_selection():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
-def create_maps_url(address):
-    """Create Google Maps URL for direct navigation"""
-    base_url = "https://www.google.com/maps/dir/?api=1&destination="
-    # Return link format for PDF instead of Excel
-    return f'<link href="{base_url}{address.replace(" ", "+")}">{address}</link>'
-
 @app.route('/export_routes', methods=['GET'])
 def export_routes():
     """Export routes to PDF file"""
-    global optimized_routes
-    global unassigned_tk_stops
-    
-    # Get date information
-    selected_weekday = get_selected_weekday()
-    week_number = session.get('selected_week')
+    selected_weekday = session_service.get_selected_weekday()
+    week_number = session_service.get_selected_week()
     target_date = get_date_from_week(week_number, selected_weekday)
     formatted_date = target_date.strftime("%d_%m_%Y")
     
-    # Create PDF in memory
-    output = BytesIO()
-    doc = SimpleDocTemplate(
-        output,
-        pagesize=landscape(A4),
-        rightMargin=1*cm,
-        leftMargin=1*cm,
-        topMargin=1*cm,
-        bottomMargin=1*cm,
-        title="SAPV Routenplanung",
-        author="SAPV Oberberg",
-        subject=f"Routen für {selected_weekday}, {formatted_date}",
+    # Create PDF using the service
+    output = create_route_pdf(
+        optimized_routes,
+        unassigned_tk_stops,
+        selected_weekday,
+        formatted_date
     )
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=14,
-        spaceAfter=20,
-        alignment=1  # Center alignment
-    )
-    
-    # Container for PDF elements
-    elements = []
-    
-    # Create tables for each route that has patients
-    first_page = True
-    for route in optimized_routes:
-        # Skip routes without any stops
-        if not route['stops']:
-            continue
-            
-        # Add PageBreak if not first route with stops
-        if not first_page:
-            elements.append(PageBreak())
-        first_page = False
-            
-        vehicle_name = route['vehicle']
-        
-        # Add vehicle name and duration info
-        elements.append(Paragraph(f"{vehicle_name}", title_style))
-        elements.append(Paragraph(
-            f"Gesamtdauer: {route['duration_hrs']} / {route['max_hours']} Stunden - {route['funktion']}",
-            styles['Normal']
-        ))
-        elements.append(Spacer(1, 12))
-        
-        # Regular stops
-        regular_stops = [stop for stop in route['stops'] if stop['visit_type'] != 'TK']
-        if regular_stops:
-            elements.append(Paragraph("Hausbesuche", title_style))
-            
-            # Table header
-            data = [['Nr.', 'Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']]
-            
-            # Add stops to table
-            for i, stop in enumerate(regular_stops, 1):
-                data.append([
-                    str(i),
-                    stop['patient'],
-                    stop['visit_type'],
-                    Paragraph(create_maps_url(stop['address']), styles['Normal']),
-                    stop.get('time_info', ''),
-                    stop.get('phone_numbers', '').replace(',', '\n')
-                ])
-            
-            # Create and style table
-            table = Table(data, repeatRows=1)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-            elements.append(table)
-            elements.append(Spacer(1, 20))
-        
-        # TK stops
-        tk_stops = [stop for stop in route['stops'] if stop['visit_type'] == 'TK']
-        if tk_stops:
-            elements.append(Paragraph("Telefonkontakte", title_style))
-            
-            # Table header
-            data = [['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']]
-            
-            # Add TK stops to table
-            for stop in tk_stops:
-                data.append([
-                    stop['patient'],
-                    'TK',
-                    Paragraph(create_maps_url(stop['address']), styles['Normal']),
-                    stop.get('time_info', ''),
-                    stop.get('phone_numbers', '').replace(',', '\n')
-                ])
-            
-            # Create and style table
-            table = Table(data, repeatRows=1)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-            elements.append(table)
-    
-    # Add unassigned TK cases if any
-    if unassigned_tk_stops:
-        # Add PageBreak before unassigned TK cases if we had any routes
-        if not first_page:
-            elements.append(PageBreak())
-        
-        elements.append(Paragraph("Nicht zugeordnete Telefonkontakte", title_style))
-        
-        # Table header
-        data = [['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']]
-        
-        # Add unassigned TK stops
-        for stop in unassigned_tk_stops:
-            data.append([
-                stop['patient'],
-                'TK',
-                Paragraph(create_maps_url(stop['address']), styles['Normal']),
-                stop.get('time_info', ''),
-                stop.get('phone_numbers', '').replace(',', '\n')
-            ])
-        
-        # Create and style table
-        table = Table(data, repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
-        elements.append(table)
-    
-    # Build PDF
-    doc.build(elements)
-    output.seek(0)
     
     return send_file(
         output,
