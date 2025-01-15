@@ -1,13 +1,16 @@
 import os
 from flask import Flask, render_template, request, jsonify, flash, send_file
-from backend.services.file_service import FileHandlerService
-from backend.services.date_time_service import DateTimeService
+from backend.handlers import (
+    handle_patient_upload, 
+    handle_vehicle_upload,
+    reload_patients_for_weekday
+)
 from backend.services.pdf_service import create_route_pdf
 from backend.services.route_service import RouteOptimizationService
 from backend.services.session_service import SessionService
 from backend.models import patients, vehicles
 from config import *
-from backend.handlers.file_handler import FileHandler
+from backend.services.date_time_service import DateTimeService
 
 # Google Cloud Service Account Authentifizierung
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
@@ -23,11 +26,6 @@ session_service = SessionService()
 optimized_routes = []
 unassigned_tk_stops = []
 
-# Services und Handler initialisieren
-file_handler = FileHandler()
-file_service = FileHandlerService()
-date_time_service = DateTimeService()
-
 @app.route('/update-weekday', methods=['POST'])
 def update_weekday():
     try:
@@ -35,7 +33,7 @@ def update_weekday():
         weekday = data.get('weekday')
         if weekday:
             session_service.set_selected_weekday(weekday)
-            file_service.reload_patients_for_weekday(weekday)
+            reload_patients_for_weekday(weekday)
             return jsonify({
                 'status': 'success', 
                 'weekday': weekday,
@@ -49,7 +47,10 @@ def update_weekday():
 def upload_file():
     if request.method == 'POST':
         upload_type = request.form.get('upload_type')
-        return file_handler.handle_upload(request, upload_type)
+        if upload_type == 'patients':
+            return handle_patient_upload(request)
+        elif upload_type == 'vehicles':
+            return handle_vehicle_upload(request)
 
     return render_template(
         'index.html',
@@ -131,12 +132,10 @@ def get_markers():
 def show_patients():
     selected_weekday = session_service.get_selected_weekday()
     week_number = session_service.get_selected_week()
-    date = date_time_service.get_date_from_week(week_number, selected_weekday)
+    date = DateTimeService.get_date_from_week(week_number, selected_weekday)
     return render_template('show_patient.html',
-                         patients=patients,
-                         weekday=selected_weekday, 
-                         week_number=week_number, 
-                         date=date)
+                           patients=patients,
+                           weekday=selected_weekday, week_number=week_number, date=date)
 
 @app.route('/vehicles')
 def show_vehicles():
@@ -220,7 +219,7 @@ def export_routes():
     """Export routes to PDF file"""
     selected_weekday = session_service.get_selected_weekday()
     week_number = session_service.get_selected_week()
-    target_date = date_time_service.get_date_from_week(week_number, selected_weekday)
+    target_date = DateTimeService.get_date_from_week(week_number, selected_weekday)
     formatted_date = target_date.strftime("%d_%m_%Y")
     
     # Create PDF using the service
