@@ -827,7 +827,7 @@ function updateRouteDuration(routeCard, durationHrs = 0) {
         durationSpan.style.color = 'red';
     }
     
-    durationSpan.textContent = `(${durationHrs} / ${maxHours}h)`;
+    durationSpan.textContent = `${durationHrs} / ${maxHours}h`;
     routeCard.dataset.durationHrs = durationHrs;
 }
 
