@@ -512,6 +512,8 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
     const container = e.target.closest('.stops-container');
     if (!container) return;
 
@@ -521,48 +523,41 @@ function handleDragOver(e) {
     const isTKContainer = container.getAttribute('data-vehicle') === 'tk';
     const isTKStop = draggingElement.classList.contains('tk-stop');
     
-    // TK-Container akzeptiert nur TK-Stopps
     if (isTKContainer && !isTKStop) {
         e.dataTransfer.dropEffect = 'none';
         return;
     }
-    
-    e.dataTransfer.dropEffect = 'move';
 
-    // Entferne vorhandene Drop-Indikatoren
-    container.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+    // Entferne zuerst alle existierenden Drop-Indikatoren auf der Seite
+    document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
 
-    const stops = [...container.querySelectorAll('.stop-card:not(.dragging)')];
-    const afterElement = getDropPosition(container, e.clientY, isTKStop);
-    
-    if (afterElement) {
-        // Füge Drop-Indikator ein
-        const indicator = document.createElement('div');
-        indicator.className = 'drop-indicator';
-        afterElement.before(indicator);
-    } else if (!isTKStop) {
-        // Am Ende einfügen (nur für nicht-TK-Stopps)
-        const indicator = document.createElement('div');
-        indicator.className = 'drop-indicator';
+    // Erstelle einen einzelnen Drop-Indikator
+    const indicator = document.createElement('div');
+    indicator.className = 'drop-indicator';
+
+    if (isTKStop) {
+        // TK-Stopps immer ans Ende
         container.appendChild(indicator);
+    } else {
+        const afterElement = getDropPosition(container, e.clientY, isTKStop);
+        if (afterElement) {
+            // Füge den Indikator vor dem nächsten Element ein
+            afterElement.before(indicator);
+        } else {
+            // Wenn kein nachfolgendes Element gefunden wurde, ans Ende anfügen
+            const tkStops = container.querySelectorAll('.tk-stop');
+            if (tkStops.length > 0) {
+                tkStops[0].before(indicator);
+            } else {
+                container.appendChild(indicator);
+            }
+        }
     }
 }
 
 function getDropPosition(container, y, isTKStop) {
-    const draggableElements = [...container.querySelectorAll('.stop-card:not(.dragging)')];
+    const draggableElements = [...container.querySelectorAll('.stop-card:not(.dragging):not(.tk-stop)')];
     
-    if (isTKStop) {
-        // TK-Stopps immer ans Ende
-        return null;
-    }
-
-    // Finde das erste TK-Element
-    const firstTKStop = draggableElements.find(el => el.classList.contains('tk-stop'));
-    if (firstTKStop) {
-        // Filtere TK-Stopps aus
-        draggableElements.splice(draggableElements.indexOf(firstTKStop));
-    }
-
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = y - box.top - box.height / 2;
