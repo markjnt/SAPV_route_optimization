@@ -1,4 +1,3 @@
-/* Neue Layout-Styles - am Anfang der Datei hinzufügen */
 .main-container {
     display: flex;
     height: 100vh;
@@ -29,7 +28,6 @@
     padding: 0;
 }
 
-/* Upload-Bereich nebeneinander */
 .upload-section {
     display: flex;
     gap: 20px;
@@ -38,7 +36,7 @@
 
 .upload-form {
     flex: 1;
-    margin-bottom: 0; /* Override existing margin */
+    margin-bottom: 0;
 }
 
 body {
@@ -85,12 +83,8 @@ body {
 }
 
 @keyframes countdown {
-    from {
-        width: 100%;
-    }
-    to {
-        width: 0%;
-    }
+    from { width: 100%; }
+    to { width: 0%; }
 }
 
 .messages {
@@ -100,13 +94,16 @@ body {
 .upload-form, .upload-info {
     background-color: #f0f0f0;
     border: 1px solid #cccccc;
+
 }
 form {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-input[type="file"], input[type="submit"] {
+
+input[type="file"], 
+input[type="submit"] {
     margin-bottom: 10px;
 }
 
@@ -339,7 +336,6 @@ li {
     color: #666;
 }
 
-/* Funktions-Styles */
 .funktion-line {
     font-size: 0.9em;
     padding: 2px 6px;
@@ -351,7 +347,6 @@ li {
 .funktion-line.pflege { background-color: #FFD700; }
 .funktion-line.honorar { background-color: #DDA0DD; }
 
-/* Besuchsart-Badge für die Patientenliste */
 .visit-badge {
     display: inline-block;
     padding: 4px 8px;
@@ -363,7 +358,6 @@ li {
 .visit-badge.tk { background-color: #87CEFA; }
 .visit-badge.neuaufnahme { background-color: #FFB6C1; }
 
-/* Gemeinsame Styles für show_patient.html und show_vehicle.html */
 .back-link {
     margin-bottom: 20px;
 }
@@ -384,7 +378,6 @@ th {
     background-color: #f2f2f2;
 }
 
-/* Beispieltabellen Styling */
 .example-table {
     width: auto;
     border-collapse: collapse;
@@ -616,30 +609,28 @@ th {
     cursor: pointer;
 }
 
-/* Gemeinsame Button-Styles */
 .weekday-section button,
 .upload-form input[type="submit"],
 .optimize-button button {
     padding: 10px 20px;
     font-size: 1.1em;
-    background-color: #4CAF50;  /* Grüne Farbe */
-    color: white;              /* Weißer Text */
-    border: none;             /* Kein Rand */
+    background-color: #4CAF50;
+    color: white;
+    border: none;
     border-radius: 4px;
     cursor: pointer;
     width: 100%;
-    transition: background-color 0.3s;  /* Sanfter Übergang */
+    transition: background-color 0.3s;
 }
 
 .weekday-section button:hover,
 .upload-form input[type="submit"]:hover,
 .optimize-button button:hover {
-    background-color: #45a049;  /* Dunkleres Grün beim Hover */
+    background-color: #45a049;
 }
 
-/* Entferne die alten Button-Styles */
 .weekday-section button {
-    margin-bottom: 10px;  /* Nur für den "Nächsten Tag" Button */
+    margin-bottom: 10px;
 }
 
 .optimize-button {
@@ -649,14 +640,12 @@ th {
     text-align: center;
 }
 
-/* Responsive Anpassungen */
 @media (max-width: 768px) {
     .routes-container {
         column-count: 1;
     }
 }
 
-/* Fahrzeug-Kontrollen */
 .vehicle-controls {
     margin: 20px 0;
     padding: 10px;
@@ -686,7 +675,6 @@ th {
     background-color: #45a049;
 }
 
-/* Checkbox Styling */
 .vehicle-checkbox {
     width: 18px;
     height: 18px;
@@ -740,3 +728,4 @@ th {
 .cancel-button:hover {
     background-color: #da190b;
 }
+
