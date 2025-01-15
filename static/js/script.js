@@ -25,140 +25,156 @@ const VISIT_DWELL_TIMES = {
 // ==========================================
 // Google Maps Funktionen
 // ==========================================
-window.onload = initMap();
+document.addEventListener('DOMContentLoaded', async () => {
+    await initMap();
+});
 
-function initMap() {
+async function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 51.0237509, lng: 7.535209399 },
         zoom: 9,
         streetViewControl: false,
         mapTypeControl: false
     });
-    loadMarkers();
+    
+    // Lade zuerst die gespeicherten Routen
+    try {
+        const routesResponse = await fetch('/get_saved_routes');
+        const routesData = await routesResponse.json();
+        
+        // Wenn es gespeicherte Routen gibt, zeige sie an
+        if (routesData.status === 'success' && routesData.routes.length > 0) {
+            displayRoutes(routesData);
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+        
+        // Dann lade die Marker mit den bereits geladenen Routen
+        await loadMarkers(routesData);
+    } catch (error) {
+        console.error("Fehler beim Laden der Daten:", error);
+        // Lade Marker auch wenn keine Routen geladen werden konnten
+        await loadMarkers();
+    }
 }
 
 // Marker vom Server laden
-async function loadMarkers() {
-  clearMarkers();
-  try {
-    const response = await fetch('/get_markers');
-    const data = await response.json();
+async function loadMarkers(existingRoutesData = null) {
+    clearMarkers();
+    try {
+        const response = await fetch('/get_markers');
+        const data = await response.json();
+        
+        // Erstelle Map von Patient zu Stopp-Nummer
+        const stopNumbers = new Map();
+        if (existingRoutesData?.status === 'success') {
+            existingRoutesData.routes.forEach(route => {
+                route.stops.forEach((stop, index) => {
+                    if (stop.visit_type !== 'TK') {
+                        stopNumbers.set(stop.patient, (index + 1).toString());
+                    }
+                });
+            });
+        }
 
-    // Hole die aktuellen Routen für die Stopp-Nummern
-    const routesResponse = await fetch('/get_saved_routes');
-    const routesData = await routesResponse.json();
-    
-    // Erstelle Map von Patient zu Stopp-Nummer
-    const stopNumbers = new Map();
-    if (routesData.status === 'success') {
-      routesData.routes.forEach(route => {
-        route.stops.forEach((stop, index) => {
-          if (stop.visit_type !== 'TK') {
-            stopNumbers.set(stop.patient, (index + 1).toString());
-          }
+        // Info-Window Inhalt für Patienten
+        data.patients.forEach(p => {
+            const infoContent = `
+                <div class="marker-info">
+                    <strong>${p.name}</strong>
+                    <div class="marker-visit-type ${
+                        p.visit_type === 'HB' ? 'hb' : 
+                        p.visit_type === 'TK' ? 'tk' : 
+                        p.visit_type === 'Neuaufnahme' ? 'neuaufnahme' : ''
+                    }">${p.visit_type}</div>
+                    <div class="marker-address">${p.start_address || p.address}</div>
+                </div>
+            `;
+
+            const infoWindow = new google.maps.InfoWindow({
+                content: infoContent,
+                maxWidth: 200
+            });
+
+            const marker = new google.maps.Marker({
+                position: { lat: p.lat, lng: p.lng },
+                map: map,
+                label: p.visit_type !== 'TK' ? {
+                    text: stopNumbers.get(p.name) || ' ',
+                    color: '#FFFFFF',
+                    fontSize: '10px',
+                    fontWeight: 'bold'
+                } : null,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: p.visit_type === 'HB' ? '#32CD32' :
+                               p.visit_type === 'TK' ? '#1E90FF' :
+                               p.visit_type === 'Neuaufnahme' ? '#FF4500' :
+                               '#666666',
+                    fillOpacity: 1,
+                    strokeWeight: 2,
+                    strokeColor: "#FFFFFF",
+                    labelOrigin: new google.maps.Point(0, 0)
+                }
+            });
+
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+
+            markers.push(marker);
+            marker.customData = {
+                type: 'patient',
+                name: p.name,
+                isTK: p.visit_type === 'TK'
+            };
         });
-      });
+
+        // Info-Window Inhalt für Mitarbeiter
+        data.vehicles.forEach(v => {
+            const infoContent = `
+                <div class="marker-info">
+                    <strong>${v.name}</strong>
+                    <div class="marker-function ${
+                        v.funktion === 'Arzt' ? 'arzt' : 
+                        v.funktion === 'Pflegekraft' ? 'pflege' : 
+                        v.funktion?.toLowerCase().includes('honorararzt') ? 'honorar' : ''
+                    }">${v.funktion || ''}</div>
+                    <div class="marker-address">${v.start_address || v.address}</div>
+                </div>
+            `;
+
+            const infoWindow = new google.maps.InfoWindow({
+                content: infoContent,
+                maxWidth: 200
+            });
+
+            const marker = new google.maps.Marker({
+                position: { lat: v.lat, lng: v.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: v.funktion === 'Arzt' ? '#98FB98' :
+                               v.funktion === 'Pflegekraft' ? '#FFD700' :
+                               v.funktion?.toLowerCase().includes('honorararzt') ? '#DDA0DD' :
+                               '#666666',
+                    fillOpacity: 1,
+                    strokeWeight: 2,
+                    strokeColor: "#FFFFFF"
+                }
+            });
+
+            // Click-Event für Info-Window
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+
+            markers.push(marker);
+        });
+    } catch (error) {
+        console.error("Fehler beim Laden der Marker:", error);
     }
-
-    // Info-Window Inhalt für Patienten
-    data.patients.forEach(p => {
-      const infoContent = `
-        <div class="marker-info">
-          <strong>${p.name}</strong>
-          <div class="marker-visit-type ${
-            p.visit_type === 'HB' ? 'hb' : 
-            p.visit_type === 'TK' ? 'tk' : 
-            p.visit_type === 'Neuaufnahme' ? 'neuaufnahme' : ''
-          }">${p.visit_type}</div>
-          <div class="marker-address">${p.start_address || p.address}</div>
-        </div>
-      `;
-
-      const infoWindow = new google.maps.InfoWindow({
-        content: infoContent,
-        maxWidth: 200
-      });
-
-      const marker = new google.maps.Marker({
-        position: { lat: p.lat, lng: p.lng },
-        map: map,
-        label: p.visit_type !== 'TK' ? {
-          text: stopNumbers.get(p.name) || ' ',
-          color: '#FFFFFF',
-          fontSize: '10px',
-          fontWeight: 'bold'
-        } : null,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: p.visit_type === 'HB' ? '#32CD32' :
-                     p.visit_type === 'TK' ? '#1E90FF' :
-                     p.visit_type === 'Neuaufnahme' ? '#FF4500' :
-                     '#666666',
-          fillOpacity: 1,
-          strokeWeight: 2,
-          strokeColor: "#FFFFFF",
-          labelOrigin: new google.maps.Point(0, 0)
-        }
-      });
-
-      marker.addListener('click', () => {
-        infoWindow.open(map, marker);
-      });
-
-      markers.push(marker);
-      marker.customData = {
-        type: 'patient',
-        name: p.name,
-        isTK: p.visit_type === 'TK'
-      };
-    });
-
-    // Info-Window Inhalt für Mitarbeiter
-    data.vehicles.forEach(v => {
-      const infoContent = `
-        <div class="marker-info">
-          <strong>${v.name}</strong>
-          <div class="marker-function ${
-            v.funktion === 'Arzt' ? 'arzt' : 
-            v.funktion === 'Pflegekraft' ? 'pflege' : 
-            v.funktion?.toLowerCase().includes('honorararzt') ? 'honorar' : ''
-          }">${v.funktion || ''}</div>
-          <div class="marker-address">${v.start_address || v.address}</div>
-        </div>
-      `;
-
-      const infoWindow = new google.maps.InfoWindow({
-        content: infoContent,
-        maxWidth: 200
-      });
-
-      const marker = new google.maps.Marker({
-        position: { lat: v.lat, lng: v.lng },
-        map: map,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: v.funktion === 'Arzt' ? '#98FB98' :
-                     v.funktion === 'Pflegekraft' ? '#FFD700' :
-                     v.funktion?.toLowerCase().includes('honorararzt') ? '#DDA0DD' :
-                     '#666666',
-          fillOpacity: 1,
-          strokeWeight: 2,
-          strokeColor: "#FFFFFF"
-        }
-      });
-
-      // Click-Event für Info-Window
-      marker.addListener('click', () => {
-        infoWindow.open(map, marker);
-      });
-
-      markers.push(marker);
-    });
-  } catch (error) {
-    console.error("Fehler beim Laden der Marker:", error);
-  }
 }
 
 // Alle Marker löschen
@@ -250,15 +266,12 @@ async function updateWeekdayDisplay() {
 }
 
 // Handle DOM events (weekday selection etc.)
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Initialisiere den aktuellen Wochentag
     updateWeekdayDisplay();
 
-    // Falls du initMap() hier manuell aufrufen willst (keine callback=initMap)
-    initMap();
-
-    // Lade gespeicherte Routen
-    loadSavedRoutes();
+    // Initialisiere die Map und lade die Routen
+    await initMap();
 
     const weekdaySelect = document.getElementById('weekdaySelect');
     const tomorrowBtn = document.getElementById('tomorrowBtn');
@@ -849,19 +862,6 @@ document.addEventListener('click', function(event) {
 // ==========================================
 // Routen-Export
 // ==========================================
-async function loadSavedRoutes() {
-    try {
-        const response = await fetch('/get_saved_routes');
-        const data = await response.json();
-        if (data.status === 'success' && data.routes.length > 0) {
-            displayRoutes(data);
-            document.getElementById('resultsSection').style.display = 'block';
-        }
-    } catch (error) {
-        console.error("Fehler beim Laden der gespeicherten Routen:", error);
-    }
-}
-
 document.getElementById('exportButton')?.addEventListener('click', async () => {
     const tkContainer = document.querySelector('.stops-container[data-vehicle="tk"]');
     const hasTKStops = tkContainer && tkContainer.querySelectorAll('.stop-card').length > 0;
