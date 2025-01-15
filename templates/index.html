@@ -156,15 +156,15 @@
                         <button id="exportButton" class="export-button">Routen exportieren</button>
                     </div>
 
-                    <!-- TK-Confirmation Popup -->
-                    <div class="info-popup" id="tk-confirmation">
+                    <!-- Ersetze die beiden Popups durch ein gemeinsames -->
+                    <div class="info-popup" id="export-confirmation">
                         <div class="info-content">
-                            <span class="close-btn" onclick="toggleInfo('tk-confirmation')">&times;</span>
-                            <h3>Nicht zugeordnete TK-Fälle</h3>
-                            <p>Es gibt noch nicht zugeordnete TK-Fälle. Möchten Sie trotzdem fortfahren?</p>
+                            <span class="close-btn" onclick="toggleInfo('export-confirmation')">&times;</span>
+                            <h3>Nicht zugeordnete Patienten</h3>
+                            <p id="export-confirmation-text"></p>
                             <div class="popup-buttons">
                                 <button id="confirmExport" class="confirm-button">Ja, exportieren</button>
-                                <button onclick="toggleInfo('tk-confirmation')" class="cancel-button">Abbrechen</button>
+                                <button onclick="toggleInfo('export-confirmation')" class="cancel-button">Abbrechen</button>
                             </div>
                         </div>
                     </div>

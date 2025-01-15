@@ -6,6 +6,12 @@ let markers = [];               // Alle aktuellen Marker
 let directionsRenderers = [];   // DirectionsRenderer für Routen
 let optimized_routes = [];      // Optimierte Routen
 
+// Konstanten für Verweilzeiten
+const VISIT_DWELL_TIMES = {
+    'HB': 35 * 60,          // 35 Minuten in Sekunden
+    'Neuaufnahme': 120 * 60 // 120 Minuten in Sekunden
+};
+
 // Feste Farbpalette (30 gut unterscheidbare Farben)
 const COLORS = [
     "#FF0000", "#0000FF", "#E91E63", "#FFA500", "#800080",
@@ -15,12 +21,6 @@ const COLORS = [
     "#DAA520", "#9370DB", "#3CB371", "#FF8C00", "#BA55D3",
     "#20B2AA", "#CD5C5C", "#6B8E23", "#C71585", "#87CEEB"
 ];
-
-// Mapping der Besuchstypen zu Verweilzeiten in Sekunden
-const VISIT_DWELL_TIMES = {
-    'HB': 35 * 60,          // 35 Minuten in Sekunden
-    'Neuaufnahme': 120 * 60 // 120 Minuten in Sekunden
-};
 
 // ==========================================
 // Google Maps Funktionen
@@ -34,7 +34,8 @@ async function initMap() {
         center: { lat: 51.0237509, lng: 7.535209399 },
         zoom: 9,
         streetViewControl: false,
-        mapTypeControl: false
+        mapTypeControl: false,
+        fullscreenControl: false
     });
     
     // Lade zuerst die gespeicherten Routen
@@ -107,10 +108,10 @@ async function loadMarkers(existingRoutesData = null) {
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
                     scale: 10,
-                    fillColor: p.visit_type === 'HB' ? '#32CD32' :
-                               p.visit_type === 'TK' ? '#1E90FF' :
-                               p.visit_type === 'Neuaufnahme' ? '#FF4500' :
-                               '#666666',
+                    fillColor: p.visit_type === 'HB' ? '#00ff00' :
+                               p.visit_type === 'TK' ? '#007efc' :
+                               p.visit_type === 'Neuaufnahme' ? '#ff4400' :
+                               '#FFFFFF',
                     fillOpacity: 1,
                     strokeWeight: 2,
                     strokeColor: "#FFFFFF",
@@ -189,8 +190,27 @@ function clearRoutes() {
     directionsRenderers = [];
 }
 
+// Funktion zum Aktualisieren der Routendauer
+function updateRouteDuration(routeCard, durationHrs = 0) {
+    const header = routeCard.querySelector('h3');
+    const durationSpan = header.querySelector('.duration');
+    if (!durationSpan) return;
+
+    const maxHours = parseFloat(durationSpan.textContent.split('/')[1].replace('h)', ''));
+    
+    // Setze die Textfarbe basierend auf dem Vergleich
+    if (parseFloat(durationHrs) <= maxHours) {
+        durationSpan.style.color = 'green';
+    } else {
+        durationSpan.style.color = 'red';
+    }
+    
+    durationSpan.textContent = `${durationHrs} / ${maxHours}h`;
+    routeCard.dataset.durationHrs = durationHrs;
+}
+
 // Route berechnen mit DirectionsService
-function calculateRoute(request, routeColor, routeCard) {
+async function calculateRoute(request, routeColor, routeCard) {
     return new Promise((resolve, reject) => {
         const directionsService = new google.maps.DirectionsService();
         
@@ -207,27 +227,28 @@ function calculateRoute(request, routeColor, routeCard) {
         directionsRenderers.push(directionsRenderer);
 
         directionsService.route(request, (result, status) => {
-            if (status === "OK") {
+            if (status === 'OK') {
                 directionsRenderer.setDirections(result);
-                
+
+                // Berechne Gesamtdauer (Fahrzeit)
                 let totalDuration = 0;
                 result.routes[0].legs.forEach(leg => {
                     totalDuration += leg.duration.value;
                 });
-                
+
+                // Füge Verweilzeiten für jeden Stop hinzu
                 const stops = routeCard.querySelector('.stops-container').querySelectorAll('.stop-card:not(.tk-stop)');
                 stops.forEach(stop => {
                     const visitType = stop.querySelector('.visit-type').textContent;
                     totalDuration += VISIT_DWELL_TIMES[visitType] || 0;
                 });
                 
-                const durationHrs = Math.round((totalDuration / 3600) * 100) / 100;
-                routeCard.dataset.durationHrs = durationHrs;
+                // Konvertiere zu Stunden und aktualisiere die Anzeige
+                const durationHrs = (totalDuration / 3600).toFixed(2);
                 updateRouteDuration(routeCard, durationHrs);
                 
-                resolve(result);
+                resolve();
             } else {
-                console.error("Fehler bei der Routenberechnung:", status);
                 reject(status);
             }
         });
@@ -510,6 +531,44 @@ function displayRoutes(data) {
     tkCard.appendChild(tkContainer);
     routesContainer.appendChild(tkCard);
     
+    // Nicht zugeordnete reguläre Patienten anzeigen
+    const regularCard = document.createElement('div');
+    regularCard.className = 'route-card regular-card';
+    
+    const regularHeader = document.createElement('h3');
+    regularHeader.textContent = 'Nicht zugeordnete reguläre Patienten';
+    regularCard.appendChild(regularHeader);
+    
+    const regularContainer = document.createElement('div');
+    regularContainer.className = 'stops-container';
+    regularContainer.setAttribute('data-vehicle', 'regular');
+    
+    data.regular_stops.forEach(stop => {
+        const regularStop = document.createElement('div');
+        regularStop.className = 'stop-card regular-stop';
+        regularStop.draggable = true;
+        regularStop.innerHTML = `
+            <div class="patient-info">
+                <div class="name-line ${stop.visit_type.toLowerCase()}">
+                    <strong>${stop.patient}</strong>
+                    <span class="visit-type">${stop.visit_type}</span>
+                </div>
+                <div class="address">${stop.address}</div>
+                <div class="time-info">${stop.time_info || ''}</div>
+                <div style="display:none" data-lat="${stop.location?.lat}" data-lng="${stop.location?.lng}"></div>
+                <div style="display:none" data-phone="${stop.phone_numbers || ''}"></div>
+            </div>
+        `;
+        
+        regularStop.addEventListener('dragstart', handleDragStart);
+        regularStop.addEventListener('dragend', handleDragEnd);
+        
+        regularContainer.appendChild(regularStop);
+    });
+    
+    regularCard.appendChild(regularContainer);
+    routesContainer.appendChild(regularCard);
+    
     routeResults.appendChild(routesContainer);
 
     
@@ -543,18 +602,24 @@ function handleDragOver(e) {
     const draggingElement = document.querySelector('.dragging');
     if (!draggingElement) return;
 
-    const isTKContainer = container.getAttribute('data-vehicle') === 'tk';
+    const containerType = container.getAttribute('data-vehicle');
     const isTKStop = draggingElement.classList.contains('tk-stop');
+    const isRegularStop = draggingElement.classList.contains('regular-stop');
     
-    if (isTKContainer && !isTKStop) {
+    // Prüfe, ob der Drop erlaubt ist:
+    // 1. TK-Container akzeptiert nur TK-Stops
+    // 2. Regular-Container akzeptiert nur Regular-Stops
+    // 3. Mitarbeiter-Container akzeptiert alle Stops
+    if ((containerType === 'tk' && !isTKStop) || 
+        (containerType === 'regular' && !isRegularStop)) {
         e.dataTransfer.dropEffect = 'none';
         return;
     }
 
-    // Entferne zuerst alle existierenden Drop-Indikatoren auf der Seite
+    // Entferne zuerst alle existierenden Drop-Indikatoren
     document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
 
-    // Erstelle einen einzelnen Drop-Indikator
+    // Erstelle einen Drop-Indikator
     const indicator = document.createElement('div');
     indicator.className = 'drop-indicator';
 
@@ -578,8 +643,8 @@ function handleDragOver(e) {
     }
 }
 
-function getDropPosition(container, y, isTKStop) {
-    const draggableElements = [...container.querySelectorAll('.stop-card:not(.dragging):not(.tk-stop)')];
+function getDropPosition(container, y) {
+    const draggableElements = [...container.querySelectorAll('.stop-card:not(.dragging)')];
     
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
@@ -633,19 +698,14 @@ async function handleDrop(e) {
         
         // Aktualisiere die Stoppnummern
         updateStopNumbers();
-        
-        // Sammle nur die betroffenen Container für die Routenberechnung
-        const containersToUpdate = new Set();
-        if (!isTKContainer) containersToUpdate.add(targetContainer);
-        if (sourceContainer !== targetContainer && sourceContainer.getAttribute('data-vehicle') !== 'tk') {
-            containersToUpdate.add(sourceContainer);
-        }
 
         const routePromises = [];
         
-        // Aktualisiere nur die Routen für die betroffenen Container
-        containersToUpdate.forEach(container => {
+        // Aktualisiere ALLE Mitarbeiter-Container
+        document.querySelectorAll('.stops-container:not([data-vehicle="tk"]):not([data-vehicle="regular"])').forEach(container => {
             const routeCard = container.closest('.route-card');
+            if (!routeCard) return;
+
             const routeColor = routeCard.style.borderColor;
             const regularStops = [...container.querySelectorAll('.stop-card:not(.tk-stop)')];
             
@@ -678,7 +738,7 @@ async function handleDrop(e) {
         });
 
         try {
-            // Warte auf die Routenberechnungen der betroffenen Container
+            // Warte auf die Routenberechnungen
             await Promise.all(routePromises);
             
             // Aktualisiere die optimierten Routen
@@ -691,7 +751,8 @@ async function handleDrop(e) {
 
 // Stoppnummern aktualisieren
 function updateStopNumbers() {
-    document.querySelectorAll('.stops-container').forEach(container => {
+    // Nur Container, die keine unassigned Container sind
+    document.querySelectorAll('.stops-container:not([data-vehicle="tk"]):not([data-vehicle="regular"])').forEach(container => {
         // Nur Nicht-TK-Stopps nummerieren
         const regularStops = container.querySelectorAll('.stop-card:not(.tk-stop)');
         regularStops.forEach((stop, index) => {
@@ -734,8 +795,9 @@ function updateStopNumbers() {
 function updateOptimizedRoutes() {
     const optimized_routes = [];
     const assigned_tk_stops = new Set();
+    const assigned_regular_stops = new Set();
     
-    document.querySelectorAll('.stops-container:not([data-vehicle="tk"])').forEach((container) => {
+    document.querySelectorAll('.stops-container:not([data-vehicle="tk"]):not([data-vehicle="regular"])').forEach((container) => {
         const routeCard = container.closest('.route-card');
         const vehicleName = container.getAttribute('data-vehicle');
 
@@ -748,11 +810,10 @@ function updateOptimizedRoutes() {
             stops: []
         };
         
-        // Sammle alle Stopps
+        // Sammle alle zugewiesenen Stops
         container.querySelectorAll('.stop-card').forEach(stop => {
-            const locationDiv = stop.querySelector('[data-lat]');
             const isTKStop = stop.classList.contains('tk-stop');
-            
+            const locationDiv = stop.querySelector('[data-lat]');
             const stopInfo = {
                 patient: stop.querySelector('strong').textContent,
                 address: stop.querySelector('.address').textContent,
@@ -769,28 +830,53 @@ function updateOptimizedRoutes() {
             
             if (isTKStop) {
                 assigned_tk_stops.add(stopInfo.patient);
+            } else {
+                assigned_regular_stops.add(stopInfo.patient);
             }
         });
         
         optimized_routes.push(routeInfo);
     });
     
-    // Sammle nicht zugewiesene TK-Stopps
+    // Sammle nicht zugewiesene Stops
     const unassigned_tk_stops = [];
+    const unassigned_regular_stops = [];
+    
     document.querySelector('.stops-container[data-vehicle="tk"]')?.querySelectorAll('.stop-card').forEach(stop => {
         const patient = stop.querySelector('strong').textContent;
         if (!assigned_tk_stops.has(patient)) {
             const locationDiv = stop.querySelector('[data-lat]');
-            unassigned_tk_stops.push({
+            const stopInfo = {
                 patient: patient,
                 address: stop.querySelector('.address').textContent,
                 visit_type: "TK",
+                time_info: stop.querySelector('.time-info')?.textContent || "",
                 phone_numbers: stop.querySelector('[data-phone]')?.dataset.phone || "",
                 location: locationDiv ? {
                     lat: parseFloat(locationDiv.dataset.lat),
                     lng: parseFloat(locationDiv.dataset.lng)
                 } : null
-            });
+            };
+            unassigned_tk_stops.push(stopInfo);
+        }
+    });
+    
+    document.querySelector('.stops-container[data-vehicle="regular"]')?.querySelectorAll('.stop-card').forEach(stop => {
+        const patient = stop.querySelector('strong').textContent;
+        if (!assigned_regular_stops.has(patient)) {
+            const locationDiv = stop.querySelector('[data-lat]');
+            const stopInfo = {
+                patient: patient,
+                address: stop.querySelector('.address').textContent,
+                visit_type: stop.querySelector('.visit-type').textContent,
+                time_info: stop.querySelector('.time-info')?.textContent || "",
+                phone_numbers: stop.querySelector('[data-phone]')?.dataset.phone || "",
+                location: locationDiv ? {
+                    lat: parseFloat(locationDiv.dataset.lat),
+                    lng: parseFloat(locationDiv.dataset.lng)
+                } : null
+            };
+            unassigned_regular_stops.push(stopInfo);
         }
     });
 
@@ -801,7 +887,8 @@ function updateOptimizedRoutes() {
         },
         body: JSON.stringify({ 
             optimized_routes: optimized_routes,
-            unassigned_tk_stops: unassigned_tk_stops
+            unassigned_tk_stops: unassigned_tk_stops,
+            unassigned_regular_stops: unassigned_regular_stops
         })
     })
     .then(response => response.json())
@@ -813,8 +900,6 @@ function updateOptimizedRoutes() {
         }
     })
     .catch(error => console.error('Error updating routes:', error));
-}
-
 // Fügen Sie ein Event-Listener für das Drag-Ende hinzu
 document.querySelectorAll('.stop-card').forEach(stopCard => {
     stopCard.addEventListener('dragend', () => {
@@ -822,23 +907,44 @@ document.querySelectorAll('.stop-card').forEach(stopCard => {
         updateOptimizedRoutes();
     });
 });
-
-// Funktion zum Aktualisieren der Routendauer
-function updateRouteDuration(routeCard, durationHrs = 0) {
-    const header = routeCard.querySelector('h3');
-    const durationSpan = header.querySelector('.duration');
-    const maxHours = parseFloat(durationSpan.textContent.split('/')[1].replace('h)', ''));
-    
-    // Setze die Textfarbe basierend auf dem Vergleich
-    if (durationHrs <= maxHours) {
-        durationSpan.style.color = 'green';
-    } else {
-        durationSpan.style.color = 'red';
-    }
-    
-    durationSpan.textContent = `${durationHrs} / ${maxHours}h`;
-    routeCard.dataset.durationHrs = durationHrs;
 }
+
+// ==========================================
+// Routen-Export
+// ==========================================
+document.getElementById('exportButton')?.addEventListener('click', async () => {
+    const tkContainer = document.querySelector('.stops-container[data-vehicle="tk"]');
+    const regularContainer = document.querySelector('.stops-container[data-vehicle="regular"]');
+    
+    const hasTKStops = tkContainer && tkContainer.querySelectorAll('.stop-card').length > 0;
+    const hasRegularStops = regularContainer && regularContainer.querySelectorAll('.stop-card').length > 0;
+    
+    if (hasTKStops || hasRegularStops) {
+        // Erstelle den passenden Text basierend auf den nicht zugewiesenen Stops
+        let warningText = '';
+        if (hasTKStops && hasRegularStops) {
+            warningText = 'Es gibt noch nicht zugeordnete TK-Fälle und reguläre Patienten.';
+        } else if (hasTKStops) {
+            warningText = 'Es gibt noch nicht zugeordnete TK-Fälle.';
+        } else {
+            warningText = 'Es gibt noch nicht zugeordnete reguläre Patienten.';
+        }
+        warningText += ' Möchten Sie trotzdem fortfahren?';
+        
+        // Setze den Text und zeige das Popup
+        document.getElementById('export-confirmation-text').textContent = warningText;
+        document.getElementById('export-confirmation').style.display = 'block';
+    } else {
+        // Wenn keine unassigned stops, direkt exportieren
+        window.location.href = '/export_routes';
+    }
+});
+
+document.getElementById('confirmExport')?.addEventListener('click', () => {
+    // Hide popup and trigger download
+    document.getElementById('export-confirmation').style.display = 'none';
+    window.location.href = '/export_routes';
+});
 
 
 // ==========================================
@@ -854,7 +960,9 @@ function toggleInfo(id) {
 
     // Toggle das gewählte Popup
     const popup = document.getElementById(id);
-    popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
+    if (popup) {
+        popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
+    }
 }
 
 // Schließe Popups auch beim Klick außerhalb
@@ -868,24 +976,3 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// ==========================================
-// Routen-Export
-// ==========================================
-document.getElementById('exportButton')?.addEventListener('click', async () => {
-    const tkContainer = document.querySelector('.stops-container[data-vehicle="tk"]');
-    const hasTKStops = tkContainer && tkContainer.querySelectorAll('.stop-card').length > 0;
-    
-    if (hasTKStops) {
-        // Show custom popup
-        document.getElementById('tk-confirmation').style.display = 'block';
-    } else {
-        // If no TK stops, proceed directly
-        window.location.href = '/export_routes';
-    }
-});
-
-document.getElementById('confirmExport')?.addEventListener('click', () => {
-    // Hide popup and trigger download
-    document.getElementById('tk-confirmation').style.display = 'none';
-    window.location.href = '/export_routes';
-});

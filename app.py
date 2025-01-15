@@ -25,6 +25,7 @@ session_service = SessionService()
 # Globale Variablen für optimierte Routen
 optimized_routes = []
 unassigned_tk_stops = []
+unassigned_regular_stops = []
 
 @app.route('/update-weekday', methods=['POST'])
 def update_weekday():
@@ -84,8 +85,8 @@ def optimize_route():
         )
 
         # Ergebnis verarbeiten
-        global optimized_routes, unassigned_tk_stops
-        optimized_routes, unassigned_tk_stops = route_optimization_service.process_optimization_result(
+        global optimized_routes, unassigned_tk_stops, unassigned_regular_stops
+        optimized_routes, unassigned_regular_stops, unassigned_tk_stops = route_optimization_service.process_optimization_result(
             response,
             available_vehicles,
             all_active_vehicles,
@@ -96,7 +97,8 @@ def optimize_route():
         return jsonify({
             'status': 'success',
             'routes': optimized_routes,
-            'tk_patients': unassigned_tk_stops
+            'tk_patients': unassigned_tk_stops,
+            'regular_stops': unassigned_regular_stops
         })
 
     except Exception as e:
@@ -144,10 +146,11 @@ def show_vehicles():
 @app.route('/update_routes', methods=['POST'])
 def update_routes():
     try:
-        global optimized_routes
-        global unassigned_tk_stops
+        global optimized_routes, unassigned_tk_stops, unassigned_regular_stops
         data = request.get_json()
         optimized_routes = []
+        unassigned_tk_stops = data.get('unassigned_tk_stops', [])
+        unassigned_regular_stops = data.get('unassigned_regular_stops', [])
         
         # Alle aktiven Mitarbeiter berücksichtigen
         active_vehicles = [v for v in vehicles if v.is_active]
@@ -170,13 +173,11 @@ def update_routes():
                     }
                     optimized_routes.append(route_info)
         
-        # Speichere die nicht zugewiesenen TK-Stopps
-        unassigned_tk_stops = data.get('unassigned_tk_stops', [])
-        
         return jsonify({
             'status': 'success',
             'routes': optimized_routes,
-            'tk_patients': unassigned_tk_stops
+            'tk_patients': unassigned_tk_stops,
+            'regular_stops': unassigned_regular_stops
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
@@ -190,7 +191,8 @@ def get_saved_routes():
     return jsonify({
         'status': 'success',
         'routes': optimized_routes,
-        'tk_patients': unassigned_tk_stops
+        'tk_patients': unassigned_tk_stops,
+        'regular_stops': unassigned_regular_stops
     })
 
 @app.route('/update_vehicle_selection', methods=['POST'])
@@ -226,6 +228,7 @@ def export_routes():
     output = create_route_pdf(
         optimized_routes,
         unassigned_tk_stops,
+        unassigned_regular_stops,
         selected_weekday,
         formatted_date
     )

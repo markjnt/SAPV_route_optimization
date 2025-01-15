@@ -6,7 +6,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from PyPDF2 import PdfMerger
 
-def create_route_pdf(optimized_routes, unassigned_tk_stops, selected_weekday, formatted_date):
+def create_route_pdf(optimized_routes, unassigned_tk_stops, unassigned_regular_stops, selected_weekday, formatted_date):
     """Creates a PDF document with route information"""
     merger = PdfMerger()
     
@@ -21,6 +21,15 @@ def create_route_pdf(optimized_routes, unassigned_tk_stops, selected_weekday, fo
             formatted_date
         )
         merger.append(BytesIO(route_pdf.getvalue()))
+
+    # Erstelle PDF für nicht zugewiesene reguläre Patienten
+    if unassigned_regular_stops:
+        regular_pdf = _create_unassigned_regular_pdf(
+            unassigned_regular_stops,
+            selected_weekday,
+            formatted_date
+        )
+        merger.append(BytesIO(regular_pdf.getvalue()))
 
     # Erstelle PDF für unzugewiesene TK-Fälle
     if unassigned_tk_stops:
@@ -182,3 +191,59 @@ def create_maps_url(address):
     """Create Google Maps URL for direct navigation"""
     base_url = "https://www.google.com/maps/dir/?api=1&destination="
     return f'<link href="{base_url}{address.replace(" ", "+")}">{address}</link>' 
+
+def _create_unassigned_regular_pdf(regular_stops, selected_weekday, formatted_date):
+    """Erstellt eine PDF für nicht zugewiesene reguläre Patienten"""
+    output = BytesIO()
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=landscape(A4),
+        rightMargin=1*cm,
+        leftMargin=1*cm,
+        topMargin=1*cm,
+        bottomMargin=1*cm,
+        title="Nicht zugewiesene reguläre Patienten",
+        author="SAPV Oberberg",
+        subject=f"Nicht zugewiesene Patienten für {selected_weekday}, {formatted_date}",
+    )
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=14,
+        spaceAfter=20,
+        alignment=1
+    )
+    
+    elements = []
+    elements.extend(_create_regular_section(regular_stops, title_style, styles))
+    
+    doc.build(elements)
+    output.seek(0)
+    return output
+
+def _create_regular_section(regular_stops, title_style, styles):
+    """Creates PDF elements for unassigned regular stops"""
+    elements = []
+    elements.append(Paragraph("Nicht zugewiesene reguläre Patienten", title_style))
+    
+    # Define headers and create table
+    headers = ['Patient', 'Besuchsart', 'Adresse', 'Uhrzeit/Info', 'Telefon']
+    data = [headers]
+    
+    for stop in regular_stops:
+        data.append([
+            stop['patient'],
+            stop['visit_type'],
+            Paragraph(create_maps_url(stop['address']), styles['Normal']),
+            stop.get('time_info', ''),
+            stop.get('phone_numbers', '').replace(',', '\n')
+        ])
+    
+    table = Table(data, repeatRows=1)
+    table.setStyle(_get_table_style())
+    elements.append(table)
+    elements.append(Spacer(1, 20))
+    
+    return elements 

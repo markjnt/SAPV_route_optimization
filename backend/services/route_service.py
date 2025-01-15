@@ -117,6 +117,9 @@ class RouteOptimizationService:
                         "location": {"lat": p.lat, "lng": p.lon}
                     })
         
+        # Finde nicht zugewiesene Patienten
+        unassigned_regular_stops = self.get_unassigned_stops(non_tk_patients, optimized_routes)
+        
         # Process TK patients
         unassigned_tk_stops = [{
             "patient": tk.name,
@@ -127,7 +130,7 @@ class RouteOptimizationService:
             "location": {"lat": tk.lat, "lng": tk.lon}
         } for tk in tk_patients]
         
-        return optimized_routes, unassigned_tk_stops
+        return optimized_routes, unassigned_regular_stops, unassigned_tk_stops
 
     def validate_optimization_input(self, vehicles, patients):
         """Validates the input data for optimization"""
@@ -139,3 +142,34 @@ class RouteOptimizationService:
             return False, 'Es muss mindestens ein Patient vorhanden sein.'
         
         return True, None 
+
+    def get_unassigned_stops(self, non_tk_patients, optimized_routes):
+        """
+        Vergleicht die eingegebenen Patienten mit den zugewiesenen Patienten aus den
+        optimierten Routen und gibt die nicht zugewiesenen Patienten zurück.
+        """
+        # Sammle alle zugewiesenen Patienten
+        assigned_patients = set()
+        for route in optimized_routes:
+            for stop in route['stops']:
+                assigned_patients.add(stop['patient'])
+        
+        # Finde nicht zugewiesene Patienten
+        input_patient_names = {p.name for p in non_tk_patients}
+        unassigned_patient_names = input_patient_names - assigned_patients
+        
+        # Erstelle Liste der nicht zugewiesenen Patienten
+        unassigned_regular_stops = [
+            {
+                "patient": p.name,
+                "address": p.address,
+                "visit_type": p.visit_type,
+                "time_info": p.time_info,
+                "phone_numbers": p.phone_numbers,
+                "location": {"lat": p.lat, "lng": p.lon}
+            }
+            for p in non_tk_patients
+            if p.name in unassigned_patient_names
+        ]
+        
+        return unassigned_regular_stops 
