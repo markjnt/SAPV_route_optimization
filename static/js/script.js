@@ -155,9 +155,9 @@ async function loadMarkers(existingRoutesData = null) {
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
                     scale: 10,
-                    fillColor: v.funktion === 'Arzt' ? '#98FB98' :
-                               v.funktion === 'Pflegekraft' ? '#FFD700' :
-                               v.funktion?.toLowerCase().includes('honorararzt') ? '#DDA0DD' :
+                    fillColor: v.funktion === 'Arzt' ? '#FF0000' :
+                               v.funktion === 'Pflegekraft' ? '#be00fe' :
+                               v.funktion?.toLowerCase().includes('honorararzt') ? '#FF0000' :
                                '#666666',
                     fillOpacity: 1,
                     strokeWeight: 2,

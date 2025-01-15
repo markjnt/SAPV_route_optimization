@@ -288,7 +288,7 @@ li {
 
 .tk-card {
     border-color: #87CEFA !important;
-    background: #d1eeff;
+    background: #f0f9ff;
 }
 
 .tk-stop {
@@ -326,9 +326,9 @@ li {
     display: inline-block;
 }
 
-.funktion-line.arzt { background-color: #98FB98; }
-.funktion-line.pflege { background-color: #FFD700; }
-.funktion-line.honorar { background-color: #DDA0DD; }
+.funktion-line.arzt { background-color: #ff3939; }
+.funktion-line.pflege { background-color: #d042ff; }
+.funktion-line.honorar { background-color: #ff3939; }
 
 .visit-badge {
     display: inline-block;
@@ -468,9 +468,9 @@ th {
     font-weight: bold;
 }
 
-.marker-function.arzt { background-color: #98FB98; }
-.marker-function.pflege { background-color: #FFD700; }
-.marker-function.honorar { background-color: #DDA0DD; }
+.marker-function.arzt { background-color: #ff3939; }
+.marker-function.pflege { background-color: #d042ff; }
+.marker-function.honorar { background-color: #ff3939; }
 
 .marker-visit-type {
     font-size: 0.9em;
