@@ -55,12 +55,6 @@ body {
     box-shadow: none;
 }
 
-.messages, .upload-form, .upload-info {
-            margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 5px;
-        }
-
 .messages {
     background-color: #ffffcc;
     border: 1px solid #ffcc00;
@@ -70,6 +64,7 @@ body {
     border-radius: 5px;
     overflow: hidden;
     box-sizing: border-box;
+    margin-bottom: 20px;
 }
 
 .messages .progress-bar {
@@ -87,15 +82,14 @@ body {
     to { width: 0%; }
 }
 
-.messages {
-    background-color: #ffffcc;
-    border: 1px solid #ffcc00;
-}
 .upload-form, .upload-info {
     background-color: #f0f0f0;
     border: 1px solid #cccccc;
-
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 5px;
 }
+
 form {
     display: flex;
     flex-direction: column;
@@ -360,6 +354,8 @@ li {
 
 .back-link {
     margin-bottom: 20px;
+    padding: 0 0 20px 0;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 table {
@@ -621,23 +617,13 @@ th {
     cursor: pointer;
     width: 100%;
     transition: background-color 0.3s;
+    margin-bottom: 10px;
 }
 
 .weekday-section button:hover,
 .upload-form input[type="submit"]:hover,
 .optimize-button button:hover {
     background-color: #45a049;
-}
-
-.weekday-section button {
-    margin-bottom: 10px;
-}
-
-.optimize-button {
-    margin-top: 20px;
-    border-top: 1px solid #eee;
-    padding-top: 20px;
-    text-align: center;
 }
 
 @media (max-width: 768px) {
