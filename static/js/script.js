@@ -460,46 +460,44 @@ function displayRoutes(data) {
     });
     
     // Nicht zugeordnete TK-Patienten separat anzeigen
-    if (data.tk_patients && data.tk_patients.length > 0) {
-        const tkCard = document.createElement('div');
-        tkCard.className = 'route-card tk-card';
-        
-        const tkHeader = document.createElement('h3');
-        tkHeader.textContent = 'Nicht zugeordnete TK-Fälle';
-        tkCard.appendChild(tkHeader);
-        
-        const tkContainer = document.createElement('div');
-        tkContainer.className = 'stops-container';
-        tkContainer.setAttribute('data-vehicle', 'tk');
-        
-        data.tk_patients.forEach(tk => {
-            const tkStop = document.createElement('div');
-            tkStop.className = 'stop-card tk-stop';
-            tkStop.draggable = true;
-            tkStop.innerHTML = `
-                <div class="patient-info">
-                    <div class="name-line tk">
-                        <strong>${tk.patient}</strong>
-                        <span class="visit-type">TK</span>
-                    </div>
-                    <div class="address">${tk.address}</div>
-                    <div class="time-info">${tk.time_info || ''}</div>
-                    <div style="display:none" data-lat="${tk.location?.lat}" data-lng="${tk.location?.lng}"></div>
-                    <div style="display:none" data-phone="${tk.phone_numbers || ''}"></div>
+    const tkCard = document.createElement('div');
+    tkCard.className = 'route-card tk-card';
+    
+    const tkHeader = document.createElement('h3');
+    tkHeader.textContent = 'Nicht zugeordnete TK-Fälle';
+    tkCard.appendChild(tkHeader);
+    
+    const tkContainer = document.createElement('div');
+    tkContainer.className = 'stops-container';
+    tkContainer.setAttribute('data-vehicle', 'tk');
+    
+    data.tk_patients.forEach(tk => {
+        const tkStop = document.createElement('div');
+        tkStop.className = 'stop-card tk-stop';
+        tkStop.draggable = true;
+        tkStop.innerHTML = `
+            <div class="patient-info">
+                <div class="name-line tk">
+                    <strong>${tk.patient}</strong>
+                    <span class="visit-type">TK</span>
                 </div>
-            `;
-            
-            tkStop.addEventListener('dragstart', handleDragStart);
-            tkStop.addEventListener('dragend', handleDragEnd);
-            
-            tkContainer.appendChild(tkStop);
-        });
+                <div class="address">${tk.address}</div>
+                <div class="time-info">${tk.time_info || ''}</div>
+                <div style="display:none" data-lat="${tk.location?.lat}" data-lng="${tk.location?.lng}"></div>
+                <div style="display:none" data-phone="${tk.phone_numbers || ''}"></div>
+            </div>
+        `;
         
-        tkCard.appendChild(tkContainer);
-        routesContainer.appendChild(tkCard);
+        tkStop.addEventListener('dragstart', handleDragStart);
+        tkStop.addEventListener('dragend', handleDragEnd);
         
-        routeResults.appendChild(routesContainer);
-    }
+        tkContainer.appendChild(tkStop);
+    });
+    
+    tkCard.appendChild(tkContainer);
+    routesContainer.appendChild(tkCard);
+    
+    routeResults.appendChild(routesContainer);
 
     
     document.querySelectorAll('.stops-container').forEach(container => {
