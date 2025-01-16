@@ -175,9 +175,8 @@ li {
 }
 
 .route-card {
-    flex: 1;
-    min-width: 300px;
-    max-width: 400px;
+    width: 350px;
+    flex: none;
     border: 2px solid;
     border-radius: 8px;
     padding: 15px;
@@ -731,10 +730,16 @@ th {
 .route-card.tk-card {
     border-color: #87CEFA;
     background: #f9fdff;
+    width: 350px;
+    padding: 15px;
+    flex: none;
 }
 
 .route-card.regular-card {
     border-color: #808080;
     background: #f0f0f0;
+    width: 350px;
+    padding: 15px;
+    flex: none;
 }
 
