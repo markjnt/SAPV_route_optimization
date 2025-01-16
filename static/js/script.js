@@ -594,8 +594,6 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    
     const container = e.target.closest('.stops-container');
     if (!container) return;
 
@@ -604,41 +602,31 @@ function handleDragOver(e) {
 
     const containerType = container.getAttribute('data-vehicle');
     const isTKStop = draggingElement.classList.contains('tk-stop');
-    const isRegularStop = draggingElement.classList.contains('regular-stop');
     
-    // Prüfe, ob der Drop erlaubt ist:
-    // 1. TK-Container akzeptiert nur TK-Stops
-    // 2. Regular-Container akzeptiert nur Regular-Stops
-    // 3. Mitarbeiter-Container akzeptiert alle Stops
+    // Erlaube das Ziehen in TK oder Regular Container
     if ((containerType === 'tk' && !isTKStop) || 
-        (containerType === 'regular' && !isRegularStop)) {
+        (containerType === 'regular' && isTKStop)) {
         e.dataTransfer.dropEffect = 'none';
         return;
     }
 
-    // Entferne zuerst alle existierenden Drop-Indikatoren
-    document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
-
-    // Erstelle einen Drop-Indikator
-    const indicator = document.createElement('div');
-    indicator.className = 'drop-indicator';
-
-    if (isTKStop) {
-        // TK-Stopps immer ans Ende
-        container.appendChild(indicator);
-    } else {
-        const afterElement = getDropPosition(container, e.clientY, isTKStop);
+    // Zeige Drop-Indikator
+    const afterElement = getDropPosition(container, e.clientY);
+    const dropIndicator = container.querySelector('.drop-indicator');
+    
+    if (dropIndicator) {
         if (afterElement) {
-            // Füge den Indikator vor dem nächsten Element ein
+            afterElement.before(dropIndicator);
+        } else {
+            container.appendChild(dropIndicator);
+        }
+    } else {
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+        if (afterElement) {
             afterElement.before(indicator);
         } else {
-            // Wenn kein nachfolgendes Element gefunden wurde, ans Ende anfügen
-            const tkStops = container.querySelectorAll('.tk-stop');
-            if (tkStops.length > 0) {
-                tkStops[0].before(indicator);
-            } else {
-                container.appendChild(indicator);
-            }
+            container.appendChild(indicator);
         }
     }
 }
@@ -672,7 +660,9 @@ async function handleDrop(e) {
         const isTKContainer = targetContainer.getAttribute('data-vehicle') === 'tk';
         const isTKStop = draggingElement.classList.contains('tk-stop');
         
-        if (isTKContainer && !isTKStop) {
+        // Erlaube nur TK-Stops in TK-Container und Regular-Stops in Regular/Mitarbeiter-Container
+        if ((isTKContainer && !isTKStop) || 
+            (!isTKContainer && isTKStop && targetContainer.getAttribute('data-vehicle') === 'regular')) {
             return;
         }
 
@@ -680,20 +670,11 @@ async function handleDrop(e) {
         targetContainer.querySelectorAll('.drop-indicator').forEach(el => el.remove());
         
         // Füge das Element hinzu
-        if (isTKStop) {
-            targetContainer.appendChild(draggingElement);
+        const afterElement = getDropPosition(targetContainer, e.clientY);
+        if (afterElement) {
+            afterElement.before(draggingElement);
         } else {
-            const afterElement = getDropPosition(targetContainer, e.clientY, isTKStop);
-            if (afterElement) {
-                afterElement.before(draggingElement);
-            } else {
-                const tkStops = targetContainer.querySelectorAll('.tk-stop');
-                if (tkStops.length > 0) {
-                    tkStops[0].before(draggingElement);
-                } else {
-                    targetContainer.appendChild(draggingElement);
-                }
-            }
+            targetContainer.appendChild(draggingElement);
         }
         
         // Aktualisiere die Stoppnummern
