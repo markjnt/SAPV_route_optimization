@@ -54,6 +54,17 @@ class FileService:
             week_number = int(df['KW'].iloc[0])
             session['selected_week'] = week_number
 
+            # Überprüfe auf ungültige Visit-Types
+            invalid_types = df[weekday].dropna().unique()
+            invalid_types = [t for t in invalid_types if t not in self.VALID_VISIT_TYPES]
+            
+            if invalid_types:
+                return {
+                    'success': False,
+                    'message': f'Fehlerhafte Besuchstypen gefunden: {", ".join(invalid_types)}. ' 
+                              f'Erlaubte Typen sind: {", ".join(self.VALID_VISIT_TYPES)}'
+                }
+
             # Verarbeite Patienten
             patients.clear()
             df_filtered = df[df[weekday].isin(self.VALID_VISIT_TYPES)].copy()
