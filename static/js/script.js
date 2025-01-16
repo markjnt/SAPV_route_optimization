@@ -172,6 +172,10 @@ async function loadMarkers(existingRoutesData = null) {
             });
 
             markers.push(marker);
+            marker.customData = {
+                type: 'vehicle',
+                name: v.name
+            };
         });
     } catch (error) {
         console.error("Fehler beim Laden der Marker:", error);
@@ -211,24 +215,30 @@ function updateRouteDuration(routeCard, durationHrs = 0) {
 
 // Route berechnen mit DirectionsService
 async function calculateRoute(request, routeColor, routeCard) {
+    const directionsService = new google.maps.DirectionsService();
+    
     return new Promise((resolve, reject) => {
-        const directionsService = new google.maps.DirectionsService();
-        
-        const directionsRenderer = new google.maps.DirectionsRenderer({
-            map: map,
-            suppressMarkers: true,
-            preserveViewport: true,
-            polylineOptions: {
-                strokeColor: routeColor,
-                strokeOpacity: 0.8,
-                strokeWeight: 4
-            }
-        });
-        directionsRenderers.push(directionsRenderer);
-
         directionsService.route(request, (result, status) => {
             if (status === 'OK') {
-                directionsRenderer.setDirections(result);
+                const renderer = new google.maps.DirectionsRenderer({
+                    map: map,
+                    directions: result,
+                    suppressMarkers: true,
+                    preserveViewport: true,
+                    polylineOptions: {
+                        strokeColor: routeColor,
+                        strokeOpacity: 0.8,
+                        strokeWeight: 4
+                    }
+                });
+
+                // Setze den Namen der Route in customData
+                const vehicleName = routeCard.querySelector('.stops-container').getAttribute('data-vehicle');
+                renderer.customData = {
+                    vehicleName: vehicleName
+                };
+
+                directionsRenderers.push(renderer);
 
                 // Berechne Gesamtdauer (Fahrzeit)
                 let totalDuration = 0;
@@ -246,8 +256,8 @@ async function calculateRoute(request, routeColor, routeCard) {
                 // Konvertiere zu Stunden und aktualisiere die Anzeige
                 const durationHrs = (totalDuration / 3600).toFixed(2);
                 updateRouteDuration(routeCard, durationHrs);
-                
-                resolve();
+
+                resolve(result);
             } else {
                 reject(status);
             }
@@ -433,18 +443,6 @@ function displayRoutes(data) {
             const origin = new google.maps.LatLng(route.vehicle_start.lat, route.vehicle_start.lng);
             const destination = origin;
 
-            const directionsRenderer = new google.maps.DirectionsRenderer({
-                map: map,
-                suppressMarkers: true,
-                preserveViewport: true,
-                polylineOptions: {
-                    strokeColor: routeColor,
-                    strokeOpacity: 0.8,
-                    strokeWeight: 4
-                }
-            });
-            directionsRenderers.push(directionsRenderer);
-
             const request = {
                 origin: origin,
                 destination: destination,
@@ -576,6 +574,8 @@ function displayRoutes(data) {
         container.addEventListener('dragover', handleDragOver);
         container.addEventListener('drop', handleDrop);
     });
+
+    setupRouteHoverEffects();
 }
 
 // ==========================================
@@ -584,7 +584,6 @@ function displayRoutes(data) {
 function handleDragStart(e) {
     e.target.classList.add('dragging');
     e.dataTransfer.setData('text/plain', e.target.innerHTML);
-    // Speichere den Typ des gezogenen Elements
     e.dataTransfer.setData('type', e.target.classList.contains('tk-stop') ? 'tk' : 'regular');
 }
 
@@ -617,11 +616,17 @@ function handleDragOver(e) {
     const indicator = document.createElement('div');
     indicator.className = 'drop-indicator';
     
-    const afterElement = getDropPosition(dropContainer, e.clientY);
-    if (afterElement) {
-        afterElement.before(indicator);
-    } else {
+    // Wenn es ein TK-Stop ist, zeige den Indikator immer am Ende
+    if (isTKStop) {
         dropContainer.appendChild(indicator);
+    } else {
+        // Für normale Stops, zeige den Indikator an der Drop-Position
+        const afterElement = getDropPosition(dropContainer, e.clientY);
+        if (afterElement) {
+            afterElement.before(indicator);
+        } else {
+            dropContainer.appendChild(indicator);
+        }
     }
 }
 
@@ -663,12 +668,17 @@ async function handleDrop(e) {
         // Entferne Drop-Indikatoren
         targetContainer.querySelectorAll('.drop-indicator').forEach(el => el.remove());
         
-        // Füge das Element hinzu
-        const afterElement = getDropPosition(targetContainer, e.clientY);
-        if (afterElement) {
-            afterElement.before(draggingElement);
-        } else {
+        // Wenn es ein TK-Stop ist, füge ihn ans Ende an
+        if (isTKStop) {
             targetContainer.appendChild(draggingElement);
+        } else {
+            // Für normale Stops, füge sie an der Drop-Position ein
+            const afterElement = getDropPosition(targetContainer, e.clientY);
+            if (afterElement) {
+                afterElement.before(draggingElement);
+            } else {
+                targetContainer.appendChild(draggingElement);
+            }
         }
         
         // Aktualisiere die Stoppnummern
@@ -713,11 +723,33 @@ async function handleDrop(e) {
         });
 
         try {
-            // Warte auf die Routenberechnungen
             await Promise.all(routePromises);
             
-            // Aktualisiere die optimierten Routen
-            updateOptimizedRoutes();
+            // Hole den Namen direkt vom targetContainer
+            const vehicleName = targetContainer.getAttribute('data-vehicle');
+            
+            // Warte auf das Update der optimierten Routen
+            await new Promise(resolve => {
+                updateOptimizedRoutes();
+                // Gib dem System Zeit, die Routen zu aktualisieren
+                setTimeout(resolve, 100);
+            });
+
+            // Setze Zoom zurück
+            map.setZoom(9);
+            
+            // Blende alle Routen aus
+            directionsRenderers.forEach(renderer => {
+                renderer.setMap(null);
+            });
+
+            // Blende die Route des Mitarbeiters ein
+            directionsRenderers.forEach(renderer => {
+                if (renderer.customData?.vehicleName === vehicleName) {
+                    renderer.setMap(map);
+                }
+            });
+            
         } catch (error) {
             console.error('Fehler bei der Routenberechnung:', error);
         }
@@ -950,4 +982,108 @@ document.addEventListener('click', function(event) {
         });
     }
 });
+
+// Event-Listener für Route-Card Hover
+function setupRouteHoverEffects() {
+    document.querySelectorAll('.route-card').forEach(card => {
+        card.addEventListener('mouseenter', () => highlightRoute(card, true));
+        card.addEventListener('mouseleave', () => highlightRoute(card, false));
+        
+        // Hover-Effekt für einzelne Stops
+        card.querySelectorAll('.stop-card').forEach(stop => {
+            stop.addEventListener('mouseenter', () => highlightStop(stop, true));
+            stop.addEventListener('mouseleave', () => highlightStop(stop, false));
+        });
+    });
+}
+
+function highlightRoute(card, highlight) {
+    const container = card.querySelector('.stops-container');
+    const vehicleName = container ? container.getAttribute('data-vehicle') : null;
+    
+    // Hole alle Patienten-Namen dieser Route
+    const stopNames = [...card.querySelectorAll('.stop-card strong')].map(strong => strong.textContent);
+    
+    // Blende alle Routen aus/ein
+    directionsRenderers.forEach(renderer => {
+        // Prüfe ob es die Route des Mitarbeiters ist
+        const isRelevantRoute = renderer.customData?.vehicleName === vehicleName;
+        
+        if (isRelevantRoute) {
+            renderer.setMap(map);
+        } else {
+            renderer.setMap(highlight ? null : map);
+        }
+    });
+
+    // Blende alle Marker aus/ein
+    markers.forEach(marker => {
+        const isRelevantPatient = marker.customData?.type === 'patient' && stopNames.includes(marker.customData.name);
+        const isRelevantVehicle = marker.customData?.type === 'vehicle' && 
+                                 marker.customData.name === vehicleName;
+        
+        marker.setMap(
+            (isRelevantPatient || isRelevantVehicle) ? 
+            map : 
+            (highlight ? null : map)
+        );
+    });
+}
+
+function highlightStop(stop, highlight) {
+    const patientName = stop.querySelector('strong').textContent;
+    
+    // Alle Marker Highlight zurücksetzen
+    markers.forEach(marker => {
+        marker.setZIndex(undefined);
+                
+        if (marker.animationInterval) {
+            clearInterval(marker.animationInterval);
+            marker.animationInterval = null;
+        }
+        
+        const icon = marker.getIcon();
+        marker.setIcon({
+            ...icon,
+            scale: 10
+        });
+        
+        // Zoom zurück auf Übersicht
+        map.setZoom(9);  // Ursprünglicher Zoom-Level
+    });
+
+    // Highlight des Patienten
+    markers.forEach(marker => {
+        if (marker.customData?.name === patientName) {
+            if (highlight) {
+                let scale = 10;
+                let growing = true;
+                
+                // Setze den Marker in den Vordergrund
+                marker.setZIndex(google.maps.Marker.MAX_ZINDEX + 1);
+                
+                marker.animationInterval = setInterval(() => {
+                    if (growing) {
+                        scale += 1;
+                        if (scale >= 14) growing = false;
+                    } else {
+                        scale -= 1;
+                        if (scale <= 10) growing = true;
+                    }
+                    
+                    const icon = marker.getIcon();
+                    marker.setIcon({
+                        ...icon,
+                        scale: scale
+                    });
+                }, 100);
+                
+                // Zoome zur Position mit Animation
+                map.setZoom(10);  // Höherer Zoom-Level
+                map.panTo(marker.getPosition());
+                
+            }
+        }
+    });
+}
 

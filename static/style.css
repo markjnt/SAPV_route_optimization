@@ -181,6 +181,7 @@ li {
     border-radius: 8px;
     padding: 15px;
     background: white;
+    transition: transform 0.2s ease;
 }
 
 .route-card h3 {
@@ -212,12 +213,13 @@ li {
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     cursor: move;
-    transition: transform 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .stop-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    background-color: #f8f8f8;
 }
 
 .stop-card.dragging {
@@ -741,5 +743,14 @@ th {
     width: 350px;
     padding: 15px;
     flex: none;
+}
+
+@keyframes bounce-label {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.bouncing-label {
+    animation: bounce-label 0.7s infinite;
 }
 
