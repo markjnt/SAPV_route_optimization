@@ -594,40 +594,34 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
     e.preventDefault();
-    const container = e.target.closest('.stops-container');
-    if (!container) return;
+    
+    // Entferne ALLE existierenden Drop-Indikatoren
+    document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+
+    const dropContainer = e.target.closest('.stops-container');
+    if (!dropContainer) return;
 
     const draggingElement = document.querySelector('.dragging');
     if (!draggingElement) return;
 
-    const containerType = container.getAttribute('data-vehicle');
+    const containerType = dropContainer.getAttribute('data-vehicle');
     const isTKStop = draggingElement.classList.contains('tk-stop');
     
-    // Erlaube das Ziehen in TK oder Regular Container
     if ((containerType === 'tk' && !isTKStop) || 
         (containerType === 'regular' && isTKStop)) {
         e.dataTransfer.dropEffect = 'none';
         return;
     }
 
-    // Zeige Drop-Indikator
-    const afterElement = getDropPosition(container, e.clientY);
-    const dropIndicator = container.querySelector('.drop-indicator');
+    // Erstelle neuen Drop-Indikator
+    const indicator = document.createElement('div');
+    indicator.className = 'drop-indicator';
     
-    if (dropIndicator) {
-        if (afterElement) {
-            afterElement.before(dropIndicator);
-        } else {
-            container.appendChild(dropIndicator);
-        }
+    const afterElement = getDropPosition(dropContainer, e.clientY);
+    if (afterElement) {
+        afterElement.before(indicator);
     } else {
-        const indicator = document.createElement('div');
-        indicator.className = 'drop-indicator';
-        if (afterElement) {
-            afterElement.before(indicator);
-        } else {
-            container.appendChild(indicator);
-        }
+        dropContainer.appendChild(indicator);
     }
 }
 
