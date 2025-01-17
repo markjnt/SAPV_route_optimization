@@ -1,5 +1,5 @@
 # Konfigurationsdatei
-/config.py
+.env
 
 # IDE-Dateien
 /.idea

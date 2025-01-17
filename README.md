@@ -1,5 +1,11 @@
-To authenticate for the APIs, create “config.py” according to the following scheme:
+# Routenoptimierung
 
-`GOOGLE_MAPS_API_KEY = 'google_maps_key'`<br>
-`SERVICE_ACCOUNT_CREDENTIALS = '/path/to/your/service-account-key-file.json'` <br>
-`FLASK_SECRET_KEY = 'super_secret_key'`
+## Umgebungsvariablen (.env)
+
+Erstellen Sie eine `.env` Datei im Hauptverzeichnis mit folgenden Variablen:
+```env
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
+GOOGLE_PROJECT_ID=your_google_project_id
+FLASK_SECRET_KEY=your_secret_key
+```

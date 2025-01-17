@@ -1,9 +1,10 @@
 from google.maps import routeoptimization_v1
 from backend.services.date_time_service import DateTimeService
 from backend.models import patients, vehicles
+from config import GOOGLE_PROJECT_ID
 
 class RouteOptimizationService:
-    def __init__(self, project_id="routenplanung-sapv"):
+    def __init__(self, project_id=GOOGLE_PROJECT_ID):
         self.project_id = project_id
         self.client = routeoptimization_v1.RouteOptimizationClient()
 

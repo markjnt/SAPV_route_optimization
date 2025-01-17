@@ -1,12 +1,13 @@
 import pandas as pd
 import googlemaps
 from flask import session
-from config import GOOGLE_MAPS_API_KEY
 from backend.models import Patient, Vehicle, patients, vehicles
+from config import GOOGLE_MAPS_API_KEY
+
 
 class FileService:
     def __init__(self):
-        self.gmaps = googlemaps.Client(key=GOOGLE_MAPS_API_KEY)
+        self.gmaps = googlemaps.Client(GOOGLE_MAPS_API_KEY)
         self.ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
         self.VALID_VISIT_TYPES = {'HB', 'TK', 'Neuaufnahme'}
         self.VALID_FUNCTIONS = {'Arzt', 'Pflegekraft', 'Honorararzt'}

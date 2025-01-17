@@ -1,5 +1,5 @@
-import os
 from flask import Flask, render_template, request, jsonify, flash, send_file
+from config import GOOGLE_MAPS_API_KEY, FLASK_SECRET_KEY
 from backend.handlers import (
     handle_patient_upload, 
     handle_vehicle_upload,
@@ -9,11 +9,7 @@ from backend.services.pdf_service import create_route_pdf
 from backend.services.route_service import RouteOptimizationService
 from backend.services.session_service import SessionService
 from backend.models import patients, vehicles
-from config import *
 from backend.services.date_time_service import DateTimeService
-
-# Google Cloud Service Account Authentifizierung
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
 
 # Flask-App initialisieren
 app = Flask(__name__)
