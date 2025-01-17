@@ -1,8 +1,11 @@
+# Konfigurationsdatei
 /config.py
+
+# IDE-Dateien
 /.idea
 /.vscode
 
-# Python cache files
+# Python Cache Dateien
 __pycache__/
 *.py[cod]
 *$py.class

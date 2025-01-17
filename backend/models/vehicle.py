@@ -1,16 +1,18 @@
 from .base import Entity
 
-# Liste für Fahrzeuge
+# Mitarbeiter = Fahrzeuge
+# Liste für Fahrzeuge bzw. Mitarbeiter
 vehicles = []
 
 class Vehicle(Entity):
+    # Fahrzeugklasse
     def __init__(self, name, start_address, lat=None, lon=None, stellenumfang=100, funktion=""):
         super().__init__(name, lat, lon)
-        self.id = len(vehicles) + 1  # Eindeutige ID basierend auf Mitarbeiterliste
+        self.id = len(vehicles) + 1
         self.start_address = start_address
-        self.stellenumfang = stellenumfang  # Arbeitszeit in Prozent (0-100%)
+        self.stellenumfang = stellenumfang
         self.funktion = funktion
-        self.is_active = True  # Standardmäßig aktiv
+        self.is_active = True
 
     def __str__(self):
         return (f"Vehicle: {self.name}, {self.start_address} "

@@ -8,15 +8,15 @@ class RouteOptimizationService:
         self.client = routeoptimization_v1.RouteOptimizationClient()
 
     def optimize_routes(self, non_tk_patients, available_vehicles, selected_weekday, week_number):
-        """Optimiert die Routen für die gegebenen Patienten und Fahrzeuge"""
+        # Optimiert die Routen für die gegebenen Patienten und Fahrzeuge
         
-        # Create shipments for non-TK patients
+        # Erstellt Lieferungen für Hausbesuche
         shipments = self._create_shipments(non_tk_patients)
         
-        # Create vehicle models
+        # Erstellt Fahrzeugmodelle
         vehicles_model = self._create_vehicle_models(available_vehicles)
         
-        # Create and send optimization request
+        # Erstellt und sendet die Optimierungsanfrage
         request = routeoptimization_v1.OptimizeToursRequest({
             "parent": f"projects/{self.project_id}",
             "model": {
@@ -31,7 +31,7 @@ class RouteOptimizationService:
         return self.client.optimize_tours(request)
 
     def _create_shipments(self, patients):
-        """Creates shipment models for patients"""
+        # Erstellt Lieferungsmuster für Patienten
         shipments = []
         for patient in patients:
             duration_seconds = self._get_visit_duration(patient.visit_type)
@@ -46,7 +46,7 @@ class RouteOptimizationService:
         return shipments
 
     def _create_vehicle_models(self, vehicles):
-        """Creates vehicle models for the optimization"""
+        # Erstellt Fahrzeugmodelle für die Optimierung
         vehicles_model = []
         for v in vehicles:
             stellenumfang = getattr(v, 'stellenumfang', 100)
@@ -70,7 +70,7 @@ class RouteOptimizationService:
         return vehicles_model
 
     def _get_visit_duration(self, visit_type):
-        """Returns the duration in seconds for a visit type"""
+        # Gibt die Dauer in Sekunden für einen Besuchstyp zurück
         durations = {
             "HB": 2100,  # 35 min
             "Neuaufnahme": 7200  # 120 min
@@ -78,10 +78,10 @@ class RouteOptimizationService:
         return durations.get(visit_type, 0)
 
     def process_optimization_result(self, response, available_vehicles, all_active_vehicles, non_tk_patients, tk_patients):
-        """Processes the optimization result and creates the response"""
+        # Verarbeitet die Optimierungsergebnisse und erstellt die Antwort
         optimized_routes = []
         
-        # Create empty containers for all active vehicles
+        # Erstellt leere Container für alle aktiven Fahrzeuge
         for vehicle in all_active_vehicles:
             max_hours = round((getattr(vehicle, 'stellenumfang', 100) / 100.0) * 7, 2)
             optimized_routes.append({
@@ -93,7 +93,7 @@ class RouteOptimizationService:
                 "stops": []
             })
         
-        # Process optimization response
+        # Verarbeitet die Optimierungsergebnisse
         for i, route in enumerate(response.routes):
             if route.vehicle_start_time and route.vehicle_end_time:
                 duration_hrs = (route.vehicle_end_time - route.vehicle_start_time).total_seconds() / 3600.0
@@ -104,7 +104,7 @@ class RouteOptimizationService:
             route_container = next(r for r in optimized_routes if r["vehicle"] == vehicle.name)
             route_container["duration_hrs"] = round(duration_hrs, 2)
             
-            # Add visits to route
+            # Fügt Besuche zur Route hinzu
             for visit in route.visits:
                 if visit.shipment_index >= 0:
                     p = non_tk_patients[visit.shipment_index]
@@ -117,10 +117,10 @@ class RouteOptimizationService:
                         "location": {"lat": p.lat, "lng": p.lon}
                     })
         
-        # Finde nicht zugewiesene Patienten
+        # Finde unzugewiesene Hausbesuche
         unassigned_regular_stops = self.get_unassigned_stops(non_tk_patients, optimized_routes)
         
-        # Process TK patients
+        # Finde unzugewiesene Telefonkontakte
         unassigned_tk_stops = [{
             "patient": tk.name,
             "address": tk.address,
@@ -133,7 +133,7 @@ class RouteOptimizationService:
         return optimized_routes, unassigned_regular_stops, unassigned_tk_stops
 
     def validate_optimization_input(self, vehicles, patients):
-        """Validates the input data for optimization"""
+        # Validiert die Eingabedaten für die Optimierung
         has_active_nurses = any(v.is_active and v.funktion == 'Pflegekraft' for v in vehicles)
         if not has_active_nurses:
             return False, 'Es muss mindestens eine aktive Pflegekraft verfügbar sein.'
@@ -144,21 +144,19 @@ class RouteOptimizationService:
         return True, None 
 
     def get_unassigned_stops(self, non_tk_patients, optimized_routes):
-        """
-        Vergleicht die eingegebenen Patienten mit den zugewiesenen Patienten aus den
-        optimierten Routen und gibt die nicht zugewiesenen Patienten zurück.
-        """
+        # Vergleicht die eingegebenen Patienten mit den zugewiesenen Patienten aus den optimierten Routen und gibt die nicht zugewiesenen Patienten zurück.
+
         # Sammle alle zugewiesenen Patienten
         assigned_patients = set()
         for route in optimized_routes:
             for stop in route['stops']:
                 assigned_patients.add(stop['patient'])
         
-        # Finde nicht zugewiesene Patienten
+        # Finde unzugewiesene Patienten
         input_patient_names = {p.name for p in non_tk_patients}
         unassigned_patient_names = input_patient_names - assigned_patients
         
-        # Erstelle Liste der nicht zugewiesenen Patienten
+        # Erstelle Liste der unzugewiesenen Patienten
         unassigned_regular_stops = [
             {
                 "patient": p.name,

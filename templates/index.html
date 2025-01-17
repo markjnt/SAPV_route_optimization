@@ -8,17 +8,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}" async defer></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 512'><path fill='%234a90e2' d='M408 120c0 54.6-73.1 151.9-105.2 192c-7.7 9.6-22 9.6-29.6 0C241.1 271.9 168 174.6 168 120C168 53.7 221.7 0 288 0s120 53.7 120 120zm8 80.4c3.5-6.9 6.7-13.8 9.6-20.6c.5-1.2 1-2.5 1.5-3.7l116-46.4C558.9 123.4 576 135 576 152V422.8c0 9.8-6 18.6-15.1 22.3L416 503V200.4zM137.6 138.3c2.4 14.1 7.2 28.3 12.8 41.5c2.9 6.8 6.1 13.7 9.6 20.6V451.8L32.9 502.7C17.1 509 0 497.4 0 480.4V209.6c0-9.8 6-18.6 15.1-22.3l122.6-49zM327.8 332c13.9-17.4 35.7-45.7 56.2-77V504.3L192 449.4V255c20.5 31.3 42.3 59.6 56.2 77c20.5 25.6 59.1 25.6 79.6 0zM288 152a40 40 0 1 0 0-80 40 40 0 1 0 0 80z'/></svg>">
 </head>
 <body>
     <div class="main-container">
         <div class="left-panel">
             <div class="container">
-                <h1>Routenoptimierung für SAPV</h1>
+                <h1><i class="fas fa-route" style="color: #000000; margin-right: 10px;"></i>Routenoptimierung</h1>
                 
                 <div class="content-wrapper">
                     <div class="main-content">
                         <div class="weekday-section">
-                            <h2>Tag auswählen</h2>
+                            <h2><i class="fas fa-calendar-day" style="color: #000000; margin-right: 10px;"></i>Tages-Auswahl</h2>
                             <select id="weekdaySelect" name="weekday">
                                 <option value="Montag">Montag</option>
                                 <option value="Dienstag">Dienstag</option>
@@ -26,19 +27,19 @@
                                 <option value="Donnerstag">Donnerstag</option>
                                 <option value="Freitag">Freitag</option>
                             </select>
-                            <button id="tomorrowBtn">Morgen</button>
+                            <button id="tomorrowBtn"><i class="fas fa-arrow-right" style="margin-right: 10px;"></i>Morgen</button>
                         </div>
 
                         <div class="upload-section">
                             <div class="upload-form">
-                                <h2>Mitarbeiter-Import</h2>
+                                <h2><i class="fas fa-users" style="color: #000000; margin-right: 10px;"></i>Mitarbeiter-Import</h2>
                                 <div class="info-icon" onclick="toggleInfo('staff-info')">
                                     <i class="fas fa-info-circle"></i>
                                 </div>
                                 <div class="info-popup" id="staff-info">
                                     <div class="info-content">
                                         <span class="close-btn" onclick="toggleInfo('staff-info')">&times;</span>
-                                        <h3>Excel-Anforderungen für Mitarbeiter</h3>
+                                        <h3>Excel-Anforderungen für Mitarbeiterliste</h3>
                                         <table class="example-table">
                                             <thead>
                                                 <tr>
@@ -63,13 +64,13 @@
                                                 </tr>
                                             </tbody>
                                         </table>
-                                        <p><strong>Funktionen:</strong> Arzt, Pflegekraft oder Honorararzt (auf Abruf)</p>
+                                        <p><strong>Funktionen:</strong> Arzt, Pflegekraft oder Honorararzt</p>
                                     </div>
                                 </div>
                                 <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
                                     <input type="hidden" name="upload_type" value="vehicles">
                                     <input type="file" name="vehicle_file" id="vehicle_file" accept=".xlsx,.xls">
-                                    <input type="submit" value="Importieren">
+                                    <button type="submit"><i class="fas fa-file-import" style="margin-right: 10px;"></i>Importieren</button>
                                 </form>
                                 {% if vehicles %}
                                 <a href="{{ url_for('show_vehicles') }}">Mitarbeiterliste anzeigen</a>
@@ -77,14 +78,14 @@
                             </div>
 
                             <div class="upload-form">
-                                <h2>Patienten-Import</h2>
+                                <h2><i class="fas fa-user" style="color: #000000; margin-right: 10px;"></i>Patienten-Import</h2>
                                 <div class="info-icon" onclick="toggleInfo('patient-info')">
                                     <i class="fas fa-info-circle"></i>
                                 </div>
                                 <div class="info-popup" id="patient-info">
                                     <div class="info-content">
                                         <span class="close-btn" onclick="toggleInfo('patient-info')">&times;</span>
-                                        <h3>Excel-Anforderungen für Patienten</h3>
+                                        <h3>Excel-Anforderungen für Patientenliste</h3>
                                         <table class="example-table">
                                             <thead>
                                                 <tr>
@@ -124,7 +125,7 @@
                                 <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
                                     <input type="hidden" name="upload_type" value="patients">
                                     <input type="file" name="patient_file" id="patient_file" accept=".xlsx,.xls">
-                                    <input type="submit" value="Importieren">
+                                    <button type="submit"><i class="fas fa-file-import" style="margin-right: 10px;"></i>Importieren</button>
                                 </form>
                                 {% if patients %}
                                 <a href="{{ url_for('show_patients') }}">Patientenliste anzeigen</a>
@@ -147,20 +148,20 @@
                     </div>
 
                     <div class="section">
-                        <button id="optimizeButton">Route optimieren</button>
+                        <button id="optimizeButton"><i class="fas fa-sync" style="margin-right: 10px;"></i>Optimieren</button>
                     </div>
 
                     <div class="section" id="resultsSection" style="display: none;">
                         <h2>Optimierte Routen</h2>
                         <div id="routeResults"></div>
-                        <button id="exportButton" class="export-button">Routen exportieren</button>
+                        <button id="exportButton" class="export-button"><i class="fas fa-file-export" style="margin-right: 10px;"></i>Exportieren</button>
                     </div>
 
                     <!-- Ersetze die beiden Popups durch ein gemeinsames -->
                     <div class="info-popup" id="export-confirmation">
                         <div class="info-content">
                             <span class="close-btn" onclick="toggleInfo('export-confirmation')">&times;</span>
-                            <h3>Nicht zugeordnete Patienten</h3>
+                            <h3>Unzugewiesene Patienten</h3>
                             <p id="export-confirmation-text"></p>
                             <div class="popup-buttons">
                                 <button id="confirmExport" class="confirm-button">Ja, exportieren</button>

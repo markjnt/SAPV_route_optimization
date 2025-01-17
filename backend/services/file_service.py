@@ -9,6 +9,7 @@ class FileService:
         self.gmaps = googlemaps.Client(key=GOOGLE_MAPS_API_KEY)
         self.ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
         self.VALID_VISIT_TYPES = {'HB', 'TK', 'Neuaufnahme'}
+        self.VALID_FUNCTIONS = {'Arzt', 'Pflegekraft', 'Honorararzt'}
         self.WEEKDAY_MAPPING = {
             0: 'Montag',
             1: 'Dienstag',
@@ -18,11 +19,11 @@ class FileService:
         }
 
     def allowed_file(self, filename):
-        """Überprüft, ob die Dateiendung erlaubt ist"""
+        # Überprüft, ob die Dateiendung erlaubt ist
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in self.ALLOWED_EXTENSIONS
 
     def geocode_address(self, address):
-        """Geocodiert eine Adresse zu Koordinaten"""
+        # Geocodiert eine Adresse zu Koordinaten
         try:
             result = self.gmaps.geocode(address)
             if result:
@@ -34,7 +35,7 @@ class FileService:
             return None, None
 
     def process_patient_file(self, file, selected_weekday=None):
-        """Verarbeitet die hochgeladene Patientendatei"""
+        # Verarbeitet die hochgeladene Patientendatei
         try:
             df = pd.read_excel(file, dtype=str)
             
@@ -45,7 +46,7 @@ class FileService:
                     'message': 'Excel-Datei hat nicht alle erforderlichen Spalten.'
                 }
 
-            # Validiere KW
+            # Validiere Kalenderwoche
             validation_result = self._validate_calendar_week(df)
             if not validation_result['success']:
                 return validation_result
@@ -61,8 +62,8 @@ class FileService:
             if invalid_types:
                 return {
                     'success': False,
-                    'message': f'Fehlerhafte Besuchstypen gefunden: {", ".join(invalid_types)}. ' 
-                              f'Erlaubte Typen sind: {", ".join(self.VALID_VISIT_TYPES)}'
+                    'message': f'Fehlerhafte Besuchsarten gefunden: {", ".join(invalid_types)}. ' 
+                              f'Erlaubte Besuchsarten sind: {", ".join(self.VALID_VISIT_TYPES)}'
                 }
 
             # Verarbeite Patienten
@@ -87,7 +88,7 @@ class FileService:
             }
 
     def process_vehicle_file(self, file):
-        """Verarbeitet die hochgeladene Fahrzeugdatei"""
+        # Verarbeitet die hochgeladene Fahrzeugdatei
         try:
             df = pd.read_excel(file, dtype=str)
             
@@ -95,6 +96,17 @@ class FileService:
                 return {
                     'success': False,
                     'message': 'Excel-Datei hat nicht alle erforderlichen Spalten.'
+                }
+
+            # Überprüfe auf ungültige Funktionen der Mitarbeiter
+            invalid_functions = df['Funktion'].dropna().unique()
+            invalid_functions = [f for f in invalid_functions if f not in self.VALID_FUNCTIONS]
+            
+            if invalid_functions:
+                return {
+                    'success': False,
+                    'message': f'Fehlerhafte Funktionen gefunden: {", ".join(invalid_functions)}. ' 
+                              f'Erlaubte Funktionen sind: {", ".join(self.VALID_FUNCTIONS)}'
                 }
 
             vehicles.clear()
@@ -116,19 +128,19 @@ class FileService:
             }
 
     def _validate_patient_columns(self, df):
-        """Validiert die Spalten der Patientendatei"""
+        # Validiert die Spalten der Patientendatei
         required_columns = ['Nachname', 'Vorname', 'Strasse', 'Ort', 'PLZ', 'KW']
         required_columns += list(self.WEEKDAY_MAPPING.values())
         required_columns += [f"Uhrzeit/Info {day}" for day in self.WEEKDAY_MAPPING.values()]
         return all(col in df.columns for col in required_columns)
 
     def _validate_vehicle_columns(self, df):
-        """Validiert die Spalten der Fahrzeugdatei"""
+        # Validiert die Spalten der Fahrzeugdatei
         required_columns = ['Nachname', 'Vorname', 'Strasse', 'Ort', 'PLZ', 'Stellenumfang', 'Funktion']
         return all(col in df.columns for col in required_columns)
 
     def _validate_calendar_week(self, df):
-        """Validiert die Kalenderwoche in der Patientendatei"""
+        # Validiert die Kalenderwoche in der Patientendatei
         try:
             df['KW'] = pd.to_numeric(df['KW'], errors='raise')
         except ValueError:
@@ -153,7 +165,7 @@ class FileService:
         return {'success': True}
 
     def _create_patient_from_row(self, row, weekday):
-        """Erstellt einen Patienten aus einer Excel-Zeile"""
+        # Erstellt einen Patienten aus einer Excel-Zeile
         name = f"{row['Vorname']} {row['Nachname']}"
         address = f"{row['Strasse']}, {row['PLZ']} {row['Ort']}"
         visit_type = row[weekday]
@@ -175,7 +187,7 @@ class FileService:
         patients.append(patient)
 
     def _create_vehicle_from_row(self, row):
-        """Erstellt ein Fahrzeug aus einer Excel-Zeile"""
+        # Erstellt ein Fahrzeug aus einer Excel-Zeile
         address = f"{row['Strasse']}, {row['PLZ']} {row['Ort']}"
         lat, lon = self.geocode_address(address)
         
@@ -192,7 +204,7 @@ class FileService:
         vehicles.append(vehicle)
 
     def _process_phone_numbers(self, row):
-        """Verarbeitet Telefonnummern aus einer Excel-Zeile"""
+        # Verarbeitet Telefonnummern aus einer Excel-Zeile
         phone1 = str(row.get('Telefon', "")).strip()
         phone2 = str(row.get('Telefon2', "")).strip()
         phone1 = "" if phone1.lower() == "nan" else phone1
@@ -203,7 +215,7 @@ class FileService:
         return phone1 or phone2 or ""
 
     def _process_stellenumfang(self, row):
-        """Verarbeitet den Stellenumfang aus einer Excel-Zeile"""
+        # Verarbeitet den Stellenumfang aus einer Excel-Zeile
         try:
             stellenumfang_val = int(float(row['Stellenumfang']))
         except:

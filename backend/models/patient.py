@@ -4,9 +4,10 @@ from .base import Entity
 patients = []
 
 class Patient(Entity):
+    # Patientenklasse
     def __init__(self, name, address, visit_type, time_info="", phone_numbers="", lat=None, lon=None):
         super().__init__(name, lat, lon)
-        self.id = len(patients) + 1  # Eindeutige ID basierend auf Patientenliste
+        self.id = len(patients) + 1
         self.address = address
         self.visit_type = visit_type
         self.time_info = time_info

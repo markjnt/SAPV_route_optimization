@@ -4,7 +4,7 @@ from backend.services.file_service import FileService
 file_service = FileService()
 
 def handle_patient_upload(request, selected_weekday=None):
-    """Handler für den Upload von Patientendaten"""
+    # Handler für den Upload von Patientendaten
     if request.method != 'POST':
         flash('Keine Patientendatei ausgewählt.')
         return redirect(url_for('upload_file'))
@@ -19,7 +19,7 @@ def handle_patient_upload(request, selected_weekday=None):
         return redirect(url_for('upload_file'))
 
     if not file_service.allowed_file(file.filename):
-        flash('Ungültiges Dateiformat.')
+        flash('Nur Excel-Dateien sind erlaubt.')
         return redirect(url_for('upload_file'))
 
     try:
@@ -34,7 +34,7 @@ def handle_patient_upload(request, selected_weekday=None):
     return redirect(url_for('upload_file'))
 
 def handle_vehicle_upload(request):
-    """Handler für den Upload von Fahrzeugdaten"""
+    # Handler für den Upload von Fahrzeugdaten
     if request.method != 'POST':
         flash('Keine Mitarbeiterdatei ausgewählt.')
         return redirect(url_for('upload_file'))
@@ -49,7 +49,7 @@ def handle_vehicle_upload(request):
         return redirect(url_for('upload_file'))
 
     if not file_service.allowed_file(file.filename):
-        flash('Ungültiges Dateiformat.')
+        flash('Nur Excel-Dateien sind erlaubt.')
         return redirect(url_for('upload_file'))
 
     try:
@@ -63,7 +63,7 @@ def handle_vehicle_upload(request):
     return redirect(url_for('upload_file'))
 
 def reload_patients_for_weekday(weekday):
-    """Handler für das Neuladen der Patienten für einen bestimmten Wochentag"""
+    # Handler für das Neuladen der Patienten für einen bestimmten Wochentag
     if not hasattr(app, 'last_patient_upload'):
         flash('Keine vorherige Patientendatei verfügbar.')
         return redirect(url_for('upload_file'))
@@ -71,9 +71,9 @@ def reload_patients_for_weekday(weekday):
     return handle_patient_upload(app.last_patient_upload, weekday) 
 
 def geocode_address(address):
-    """Handler für die Geocodierung einer Adresse"""
+    # Handler für die Geocodierung einer Adresse
     return file_service.geocode_address(address)
 
 def allowed_file(filename):
-    """Handler für die Überprüfung der Dateiendung"""
+    # Handler für die Überprüfung der Dateiendung
     return file_service.allowed_file(filename) 

@@ -1,6 +1,7 @@
 class Entity:
+    # Basisklasse für alle Entitäten
     def __init__(self, name, lat=None, lon=None):
-        self.id = None  # Wird später gesetzt
+        self.id = None
         self.name = name
         self.lat = lat
         self.lon = lon

@@ -1,6 +1,7 @@
 // ==========================================
 // Konfiguration und Globale Variablen
 // ==========================================
+
 let map;                        // Google Maps Objekt
 let markers = [];               // Alle aktuellen Marker
 let directionsRenderers = [];   // DirectionsRenderer für Routen
@@ -25,10 +26,13 @@ const COLORS = [
 // ==========================================
 // Google Maps Funktionen
 // ==========================================
+
+// Initialisiere die Map beim Laden der Seite
 document.addEventListener('DOMContentLoaded', async () => {
     await initMap();
 });
 
+// Initialisiere die Map
 async function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 51.0237509, lng: 7.535209399 },
@@ -119,6 +123,7 @@ async function loadMarkers(existingRoutesData = null) {
                 }
             });
 
+            // Click-Event für Info-Window
             marker.addListener('click', () => {
                 infoWindow.open(map, marker);
             });
@@ -194,6 +199,335 @@ function clearRoutes() {
     directionsRenderers = [];
 }
 
+// ==========================================
+// Buttons, Flash Messages, DOM-Events und Wochentags-Funktionalität
+// ==========================================
+
+// Button "Route optimieren"
+document.getElementById('optimizeButton').addEventListener('click', async () => {
+    clearRoutes(); // Alte Routen entfernen
+    try {
+        // Sende eine POST-Anfrage an den Server, um die Routen zu optimieren
+        const response = await fetch('/optimize_route', { method: 'POST' });
+        const data = await response.json();
+
+        // Wenn die Optimierung erfolgreich war, zeige die Routen an
+        if (data.status === 'success') {
+            displayRoutes(data);
+            document.getElementById('resultsSection').style.display = 'block';
+        } else {
+            console.error("Optimierungsfehler:", data.message);
+            window.location.reload();
+        }
+    } catch (error) {
+        console.error("Fetch-Fehler bei /optimize_route:", error);
+    }
+});
+
+// Funktion zum Aktualisieren des Wochentags
+async function updateWeekdayDisplay() {
+    try {
+        const response = await fetch('/get-current-weekday');
+        const data = await response.json();
+        const weekdaySelect = document.getElementById('weekdaySelect');
+        weekdaySelect.value = data.weekday;
+    } catch (err) {
+        console.error("Fehler beim Abrufen des aktuellen Wochentags:", err);
+    }
+}
+
+// DOM-Events für Wochentags-Funktionalität, Button "Morgen" und Flash Message
+document.addEventListener('DOMContentLoaded', async function() {
+
+    // Initialisiere den aktuellen Wochentag
+    updateWeekdayDisplay();
+
+    // Initialisiere die Map und lade die Routen
+    await initMap();
+
+    const weekdaySelect = document.getElementById('weekdaySelect');
+    const tomorrowBtn = document.getElementById('tomorrowBtn');
+
+    // Array der Wochentage
+    const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+
+    // Wochentag-Dropdown ändern, Server-Anfrage senden und Wochentag anzeigen
+    weekdaySelect.addEventListener('change', async function() {
+        try {
+            const response = await fetch('/update-weekday', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ weekday: this.value })
+            });
+            const data = await response.json();
+            console.log("Server Response:", data);
+            
+            // Aktualisiere den angezeigten Wochentag
+            await updateWeekdayDisplay();
+        } catch (err) {
+            console.error("Fehler beim Aktualisieren des Wochentags:", err);
+        }
+    });
+
+    // Button "Morgen"
+    tomorrowBtn.addEventListener('click', async function() {
+        const today = new Date();
+        const todayIndex = today.getDay();
+        let tomorrowIndex;
+
+        // Wenn heute Freitag (5), Samstag (6) oder Sonntag (0) ist, dann setze auf Montag (1)
+        if (todayIndex === 5 || todayIndex === 6 || todayIndex === 0) {
+            tomorrowIndex = 1; // Montag
+        } else {
+            tomorrowIndex = (todayIndex + 1) % 7;
+        }
+
+        // Wochentag-Dropdown ändern und Trigger 'change'
+        weekdaySelect.value = weekdays[tomorrowIndex];
+        weekdaySelect.dispatchEvent(new Event('change'));
+    });
+
+    // Flash Message mit Timeout
+    const flashMessage = document.getElementById('flash-message');
+    if (flashMessage) {
+        setTimeout(() => {
+            flashMessage.style.opacity = '0';
+            flashMessage.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => {
+                flashMessage.remove();
+            }, 500);
+        }, 10000);
+    }
+});
+
+// ==========================================
+// Routen-Management
+// ==========================================
+
+// Routen anzeigen
+function displayRoutes(data) {
+    clearRoutes();
+    // Aktualisiere die Marker-Labels für die neuen Routen
+    markers.forEach(marker => {
+        if (marker.customData?.type === 'patient' && !marker.customData?.isTK) {
+            // Suche die Route und Position des Patienten
+            let found = false;
+            data.routes.some(route => {
+                const stopIndex = route.stops.findIndex(stop => stop.patient === marker.customData.name);
+                if (stopIndex !== -1) {
+                    marker.setLabel({
+                        text: (stopIndex + 1).toString(),
+                        color: '#FFFFFF',
+                        fontSize: '10px',
+                        fontWeight: 'bold'
+                    });
+                    found = true;
+                    return true;
+                }
+                return false;
+            });
+            // Wenn der Patient in keiner Route ist, kein Label anzeigen
+            if (!found) {
+                marker.setLabel(null);
+            }
+        }
+    });
+    
+    // Container für alle Routen
+    const routeResults = document.getElementById('routeResults');
+    routeResults.innerHTML = '';
+    
+    const routesContainer = document.createElement('div');
+    routesContainer.className = 'routes-container';
+    
+    // Routen erstellen
+    data.routes.forEach((route, index) => {
+        const routeColor = COLORS[index % COLORS.length];
+        const routeCard = document.createElement('div');
+        routeCard.className = 'route-card';
+        routeCard.style.borderColor = routeColor;
+        
+        // Fahrzeug-Header mit Duration aus dem Backend
+        const vehicleHeader = document.createElement('h3');
+        const durationColor = (route.duration_hrs || 0) <= route.max_hours ? 'green' : 'red';
+
+        // Fahrzeug-Header mit Name, Funktion und Duration
+        vehicleHeader.innerHTML = `
+            <div class="name-function-line">
+                <span>${route.vehicle}</span>
+                <span class="funktion-line ${
+                    route.funktion === 'Arzt' ? 'arzt' : 
+                    route.funktion === 'Pflegekraft' ? 'pflege' : 
+                    route.funktion?.toLowerCase().includes('honorararzt') ? 'honorar' : ''
+                }">${route.funktion || ''}</span>
+            </div>
+            <div class="duration" style="color: ${durationColor}">${route.duration_hrs || 0} / ${route.max_hours}h</div>
+        `;
+        routeCard.appendChild(vehicleHeader);
+        
+        // Speichere die aktuelle Duration im Dataset
+        routeCard.dataset.durationHrs = route.duration_hrs || 0;
+        
+        // Container für verschiebbare Stopps
+        const stopsContainer = document.createElement('div');
+        stopsContainer.className = 'stops-container';
+        stopsContainer.setAttribute('data-vehicle', route.vehicle);
+        
+        // Filtere TK-Stopps für die Route aus
+        const regularStops = route.stops.filter(stop => stop.visit_type !== 'TK');
+        
+        // Nur reguläre Stopps für die Wegpunkte und Route verwenden
+        if (regularStops.length > 0) {
+            const waypoints = regularStops.map(s => ({
+                location: new google.maps.LatLng(s.location.lat, s.location.lng),
+                stopover: true
+            }));
+
+            // Route berechnen und anzeigen
+            const origin = new google.maps.LatLng(route.vehicle_start.lat, route.vehicle_start.lng);
+            const destination = origin;
+
+            const request = {
+                origin: origin,
+                destination: destination,
+                waypoints: waypoints,
+                travelMode: google.maps.TravelMode.DRIVING,
+                optimizeWaypoints: false
+            };
+
+            calculateRoute(request, routeColor, routeCard).catch(err => {
+                console.error("Fehler bei der Routenberechnung:", err);
+            });
+        }
+
+        // Container für alle Stopps
+        route.stops.forEach((stop, stopIndex) => {
+            const stopCard = document.createElement('div');
+            stopCard.className = `stop-card${stop.visit_type === 'TK' ? ' tk-stop' : ''}`;
+            stopCard.draggable = true;
+            stopCard.innerHTML = `
+                ${stop.visit_type !== 'TK' ? `<div class="stop-number">${stopIndex + 1}</div>` : ''}
+                <div class="patient-info">
+                    <div class="name-line ${
+                        stop.visit_type === 'HB' ? 'hb' : 
+                        stop.visit_type === 'TK' ? 'tk' : 
+                        stop.visit_type === 'Neuaufnahme' ? 'neuaufnahme' : ''
+                    }">
+                        <strong>${stop.patient}</strong>
+                        <span class="visit-type">${stop.visit_type || ''}</span>
+                    </div>
+                    <div class="address">${stop.address}</div>
+                    <div class="time-info">${stop.time_info || ''}</div>
+                    <div style="display:none" data-lat="${stop.location.lat}" data-lng="${stop.location.lng}"></div>
+                    <div style="display:none" data-phone="${stop.phone_numbers || ''}"></div>
+                </div>
+            `;
+            
+            // Drag & Drop-Events für Stopps
+            stopCard.addEventListener('dragstart', handleDragStart);
+            stopCard.addEventListener('dragend', handleDragEnd);
+            
+            stopsContainer.appendChild(stopCard);
+        });
+        
+        routeCard.appendChild(stopsContainer);
+        routesContainer.appendChild(routeCard);
+        routeCard.dataset.vehicleStartLat = route.vehicle_start.lat;
+        routeCard.dataset.vehicleStartLng = route.vehicle_start.lng;
+    });
+    
+    // Container für unzugeordnete Telefonkontakte
+    const tkCard = document.createElement('div');
+    tkCard.className = 'route-card tk-card';
+    
+    const tkHeader = document.createElement('h3');
+    tkHeader.textContent = 'Unzugewiesene Telefonkontakte';
+    tkCard.appendChild(tkHeader);
+    
+    const tkContainer = document.createElement('div');
+    tkContainer.className = 'stops-container';
+    tkContainer.setAttribute('data-vehicle', 'tk');
+    
+    // Telefonkontakte erstellen
+    data.tk_patients.forEach(tk => {
+        const tkStop = document.createElement('div');
+        tkStop.className = 'stop-card tk-stop';
+        tkStop.draggable = true;
+        tkStop.innerHTML = `
+            <div class="patient-info">
+                <div class="name-line tk">
+                    <strong>${tk.patient}</strong>
+                    <span class="visit-type">TK</span>
+                </div>
+                <div class="address">${tk.address}</div>
+                <div class="time-info">${tk.time_info || ''}</div>
+                <div style="display:none" data-lat="${tk.location?.lat}" data-lng="${tk.location?.lng}"></div>
+                <div style="display:none" data-phone="${tk.phone_numbers || ''}"></div>
+            </div>
+        `;
+        
+        // Drag & Drop-Events für Telefonkontakte
+        tkStop.addEventListener('dragstart', handleDragStart);
+        tkStop.addEventListener('dragend', handleDragEnd);
+        
+        tkContainer.appendChild(tkStop);
+    });
+    
+    tkCard.appendChild(tkContainer);
+    routesContainer.appendChild(tkCard);
+    
+    // Container für unzugewiesene Hausbesuche
+    const regularCard = document.createElement('div');
+    regularCard.className = 'route-card regular-card';
+    
+    const regularHeader = document.createElement('h3');
+    regularHeader.textContent = 'Unzugewiesene Hausbesuche';
+    regularCard.appendChild(regularHeader);
+    
+    const regularContainer = document.createElement('div');
+    regularContainer.className = 'stops-container';
+    regularContainer.setAttribute('data-vehicle', 'regular');
+    
+    // Hausbesuche erstellen
+    data.regular_stops.forEach(stop => {
+        const regularStop = document.createElement('div');
+        regularStop.className = 'stop-card regular-stop';
+        regularStop.draggable = true;
+        regularStop.innerHTML = `
+            <div class="patient-info">
+                <div class="name-line ${stop.visit_type.toLowerCase()}">
+                    <strong>${stop.patient}</strong>
+                    <span class="visit-type">${stop.visit_type}</span>
+                </div>
+                <div class="address">${stop.address}</div>
+                <div class="time-info">${stop.time_info || ''}</div>
+                <div style="display:none" data-lat="${stop.location?.lat}" data-lng="${stop.location?.lng}"></div>
+                <div style="display:none" data-phone="${stop.phone_numbers || ''}"></div>
+            </div>
+        `;
+        
+        // Drag & Drop-Events für Hausbesuche
+        regularStop.addEventListener('dragstart', handleDragStart);
+        regularStop.addEventListener('dragend', handleDragEnd);
+        
+        regularContainer.appendChild(regularStop);
+    });
+    
+    regularCard.appendChild(regularContainer);
+    routesContainer.appendChild(regularCard);
+    
+    routeResults.appendChild(routesContainer);
+
+    
+    document.querySelectorAll('.stops-container').forEach(container => {
+        container.addEventListener('dragover', handleDragOver);
+        container.addEventListener('drop', handleDrop);
+    });
+
+    // Effekte für Routen-Hover anzeigen
+    setupRouteHoverEffects();
+}
+
 // Funktion zum Aktualisieren der Routendauer
 function updateRouteDuration(routeCard, durationHrs = 0) {
     const header = routeCard.querySelector('h3');
@@ -265,347 +599,42 @@ async function calculateRoute(request, routeColor, routeCard) {
     });
 }
 
-// Handle optimize button click
-document.getElementById('optimizeButton').addEventListener('click', async () => {
-    clearRoutes(); // Alte Routen entfernen
-    try {
-        const response = await fetch('/optimize_route', { method: 'POST' });
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            displayRoutes(data);
-            document.getElementById('resultsSection').style.display = 'block';
-        } else {
-            console.error("Optimierungsfehler:", data.message);
-            window.location.reload();
-        }
-    } catch (error) {
-        console.error("Fetch-Fehler bei /optimize_route:", error);
-        alert("Netzwerkfehler bei der Routenoptimierung. Details in der Konsole.");
-    }
-});
-// Funktion zum Aktualisieren des Wochentags
-async function updateWeekdayDisplay() {
-    try {
-        const response = await fetch('/get-current-weekday');
-        const data = await response.json();
-        const weekdaySelect = document.getElementById('weekdaySelect');
-        weekdaySelect.value = data.weekday;
-    } catch (err) {
-        console.error("Error getting current weekday:", err);
-    }
-}
-
-// Handle DOM events (weekday selection etc.)
-document.addEventListener('DOMContentLoaded', async function() {
-    // Initialisiere den aktuellen Wochentag
-    updateWeekdayDisplay();
-
-    // Initialisiere die Map und lade die Routen
-    await initMap();
-
-    const weekdaySelect = document.getElementById('weekdaySelect');
-    const tomorrowBtn = document.getElementById('tomorrowBtn');
-
-    // Array der Wochentage
-    const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-
-    // Dropdown -> Server
-    weekdaySelect.addEventListener('change', async function() {
-        try {
-            const response = await fetch('/update-weekday', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ weekday: this.value })
-            });
-            const data = await response.json();
-            console.log("Server Response:", data);
-            
-            // Aktualisiere den angezeigten Wochentag
-            await updateWeekdayDisplay();
-        } catch (err) {
-            console.error("Error updating weekday:", err);
-        }
-    });
-
-    // Button "Morgen"
-    tomorrowBtn.addEventListener('click', async function() {
-        const today = new Date();
-        const todayIndex = today.getDay();
-        let tomorrowIndex;
-
-        // Wenn heute Freitag (5), Samstag (6) oder Sonntag (0) ist,
-        // dann setze auf Montag (1)
-        if (todayIndex === 5 || todayIndex === 6 || todayIndex === 0) {
-            tomorrowIndex = 1; // Montag
-        } else {
-            tomorrowIndex = (todayIndex + 1) % 7;
-        }
-
-        weekdaySelect.value = weekdays[tomorrowIndex];
-        // Trigger 'change'
-        weekdaySelect.dispatchEvent(new Event('change'));
-    });
-
-    // Flash Message mit Timeout
-    const flashMessage = document.getElementById('flash-message');
-    if (flashMessage) {
-        setTimeout(() => {
-            flashMessage.style.opacity = '0';
-            flashMessage.style.transition = 'opacity 0.5s ease';
-            setTimeout(() => {
-                flashMessage.remove();
-            }, 500);
-        }, 10000);
-    }
-});
-
-// ==========================================
-// Routen-Management
-// ==========================================
-function displayRoutes(data) {
-    clearRoutes();
-    // Aktualisiere die Marker-Labels für die neuen Routen
-    markers.forEach(marker => {
-        if (marker.customData?.type === 'patient' && !marker.customData?.isTK) {
-            // Suche die Route und Position des Patienten
-            let found = false;
-            data.routes.some(route => {
-                const stopIndex = route.stops.findIndex(stop => stop.patient === marker.customData.name);
-                if (stopIndex !== -1) {
-                    marker.setLabel({
-                        text: (stopIndex + 1).toString(),
-                        color: '#FFFFFF',
-                        fontSize: '10px',
-                        fontWeight: 'bold'
-                    });
-                    found = true;
-                    return true;
-                }
-                return false;
-            });
-            // Wenn der Patient in keiner Route ist, kein Label anzeigen
-            if (!found) {
-                marker.setLabel(null);
-            }
-        }
-    });
-    
-    const routeResults = document.getElementById('routeResults');
-    routeResults.innerHTML = '';
-    
-    const routesContainer = document.createElement('div');
-    routesContainer.className = 'routes-container';
-    
-    // Routen erstellen
-    data.routes.forEach((route, index) => {
-        const routeColor = COLORS[index % COLORS.length];
-        const routeCard = document.createElement('div');
-        routeCard.className = 'route-card';
-        routeCard.style.borderColor = routeColor;
-        
-        // Fahrzeug-Header mit Duration aus dem Backend
-        const vehicleHeader = document.createElement('h3');
-        const durationColor = (route.duration_hrs || 0) <= route.max_hours ? 'green' : 'red';
-
-        vehicleHeader.innerHTML = `
-            <div class="name-function-line">
-                <span>${route.vehicle}</span>
-                <span class="funktion-line ${
-                    route.funktion === 'Arzt' ? 'arzt' : 
-                    route.funktion === 'Pflegekraft' ? 'pflege' : 
-                    route.funktion?.toLowerCase().includes('honorararzt') ? 'honorar' : ''
-                }">${route.funktion || ''}</span>
-            </div>
-            <div class="duration" style="color: ${durationColor}">${route.duration_hrs || 0} / ${route.max_hours}h</div>
-        `;
-        routeCard.appendChild(vehicleHeader);
-        
-        // Speichere die aktuelle Duration im Dataset
-        routeCard.dataset.durationHrs = route.duration_hrs || 0;
-        
-        // Container für verschiebbare Stopps
-        const stopsContainer = document.createElement('div');
-        stopsContainer.className = 'stops-container';
-        stopsContainer.setAttribute('data-vehicle', route.vehicle);
-        
-        // Filtere TK-Stopps für die Route aus
-        const regularStops = route.stops.filter(stop => stop.visit_type !== 'TK');
-        
-        // Nur reguläre Stopps für die Wegpunkte und Route verwenden
-        if (regularStops.length > 0) {
-            const waypoints = regularStops.map(s => ({
-                location: new google.maps.LatLng(s.location.lat, s.location.lng),
-                stopover: true
-            }));
-
-            // Route berechnen und anzeigen
-            const origin = new google.maps.LatLng(route.vehicle_start.lat, route.vehicle_start.lng);
-            const destination = origin;
-
-            const request = {
-                origin: origin,
-                destination: destination,
-                waypoints: waypoints,
-                travelMode: google.maps.TravelMode.DRIVING,
-                optimizeWaypoints: false
-            };
-
-            calculateRoute(request, routeColor, routeCard).catch(err => {
-                console.error("Fehler bei der Routenberechnung:", err);
-            });
-        }
-
-        // Alle Stopps anzeigen
-        route.stops.forEach((stop, stopIndex) => {
-            const stopCard = document.createElement('div');
-            stopCard.className = `stop-card${stop.visit_type === 'TK' ? ' tk-stop' : ''}`;
-            stopCard.draggable = true;
-            stopCard.innerHTML = `
-                ${stop.visit_type !== 'TK' ? `<div class="stop-number">${stopIndex + 1}</div>` : ''}
-                <div class="patient-info">
-                    <div class="name-line ${
-                        stop.visit_type === 'HB' ? 'hb' : 
-                        stop.visit_type === 'TK' ? 'tk' : 
-                        stop.visit_type === 'Neuaufnahme' ? 'neuaufnahme' : ''
-                    }">
-                        <strong>${stop.patient}</strong>
-                        <span class="visit-type">${stop.visit_type || ''}</span>
-                    </div>
-                    <div class="address">${stop.address}</div>
-                    <div class="time-info">${stop.time_info || ''}</div>
-                    <div style="display:none" data-lat="${stop.location.lat}" data-lng="${stop.location.lng}"></div>
-                    <div style="display:none" data-phone="${stop.phone_numbers || ''}"></div>
-                </div>
-            `;
-            
-            stopCard.addEventListener('dragstart', handleDragStart);
-            stopCard.addEventListener('dragend', handleDragEnd);
-            
-            stopsContainer.appendChild(stopCard);
-        });
-        
-        routeCard.appendChild(stopsContainer);
-        routesContainer.appendChild(routeCard);
-        routeCard.dataset.vehicleStartLat = route.vehicle_start.lat;
-        routeCard.dataset.vehicleStartLng = route.vehicle_start.lng;
-    });
-    
-    // Nicht zugeordnete TK-Patienten separat anzeigen
-    const tkCard = document.createElement('div');
-    tkCard.className = 'route-card tk-card';
-    
-    const tkHeader = document.createElement('h3');
-    tkHeader.textContent = 'Nicht zugeordnete Telefonkontakte';
-    tkCard.appendChild(tkHeader);
-    
-    const tkContainer = document.createElement('div');
-    tkContainer.className = 'stops-container';
-    tkContainer.setAttribute('data-vehicle', 'tk');
-    
-    data.tk_patients.forEach(tk => {
-        const tkStop = document.createElement('div');
-        tkStop.className = 'stop-card tk-stop';
-        tkStop.draggable = true;
-        tkStop.innerHTML = `
-            <div class="patient-info">
-                <div class="name-line tk">
-                    <strong>${tk.patient}</strong>
-                    <span class="visit-type">TK</span>
-                </div>
-                <div class="address">${tk.address}</div>
-                <div class="time-info">${tk.time_info || ''}</div>
-                <div style="display:none" data-lat="${tk.location?.lat}" data-lng="${tk.location?.lng}"></div>
-                <div style="display:none" data-phone="${tk.phone_numbers || ''}"></div>
-            </div>
-        `;
-        
-        tkStop.addEventListener('dragstart', handleDragStart);
-        tkStop.addEventListener('dragend', handleDragEnd);
-        
-        tkContainer.appendChild(tkStop);
-    });
-    
-    tkCard.appendChild(tkContainer);
-    routesContainer.appendChild(tkCard);
-    
-    // Nicht zugeordnete reguläre Patienten anzeigen
-    const regularCard = document.createElement('div');
-    regularCard.className = 'route-card regular-card';
-    
-    const regularHeader = document.createElement('h3');
-    regularHeader.textContent = 'Nicht zugeordnete reguläre Patienten';
-    regularCard.appendChild(regularHeader);
-    
-    const regularContainer = document.createElement('div');
-    regularContainer.className = 'stops-container';
-    regularContainer.setAttribute('data-vehicle', 'regular');
-    
-    data.regular_stops.forEach(stop => {
-        const regularStop = document.createElement('div');
-        regularStop.className = 'stop-card regular-stop';
-        regularStop.draggable = true;
-        regularStop.innerHTML = `
-            <div class="patient-info">
-                <div class="name-line ${stop.visit_type.toLowerCase()}">
-                    <strong>${stop.patient}</strong>
-                    <span class="visit-type">${stop.visit_type}</span>
-                </div>
-                <div class="address">${stop.address}</div>
-                <div class="time-info">${stop.time_info || ''}</div>
-                <div style="display:none" data-lat="${stop.location?.lat}" data-lng="${stop.location?.lng}"></div>
-                <div style="display:none" data-phone="${stop.phone_numbers || ''}"></div>
-            </div>
-        `;
-        
-        regularStop.addEventListener('dragstart', handleDragStart);
-        regularStop.addEventListener('dragend', handleDragEnd);
-        
-        regularContainer.appendChild(regularStop);
-    });
-    
-    regularCard.appendChild(regularContainer);
-    routesContainer.appendChild(regularCard);
-    
-    routeResults.appendChild(routesContainer);
-
-    
-    document.querySelectorAll('.stops-container').forEach(container => {
-        container.addEventListener('dragover', handleDragOver);
-        container.addEventListener('drop', handleDrop);
-    });
-
-    setupRouteHoverEffects();
-}
-
 // ==========================================
 // Drag & Drop Funktionalität
 // ==========================================
+
+// Drag-Start-Event für Stopps
 function handleDragStart(e) {
     e.target.classList.add('dragging');
     e.dataTransfer.setData('text/plain', e.target.innerHTML);
     e.dataTransfer.setData('type', e.target.classList.contains('tk-stop') ? 'tk' : 'regular');
 }
 
+// Drag-End-Event für Stopps
 function handleDragEnd(e) {
     e.target.classList.remove('dragging');
 }
 
+// Drag-Over-Event für Stopps
 function handleDragOver(e) {
     e.preventDefault();
     
-    // Entferne ALLE existierenden Drop-Indikatoren
+    // Entferne alle existierenden Drop-Indikatoren
     document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
 
+    // Hole das Drop-Container
     const dropContainer = e.target.closest('.stops-container');
     if (!dropContainer) return;
 
+    // Hole das Dragging-Element
     const draggingElement = document.querySelector('.dragging');
     if (!draggingElement) return;
 
+    // Hole den Container-Typ
     const containerType = dropContainer.getAttribute('data-vehicle');
     const isTKStop = draggingElement.classList.contains('tk-stop');
     
+    // Verhindere Drag & Drop, wenn das falsche Element in den falschen Container gedroppt wird
     if ((containerType === 'tk' && !isTKStop) || 
         (containerType === 'regular' && isTKStop)) {
         e.dataTransfer.dropEffect = 'none';
@@ -630,13 +659,16 @@ function handleDragOver(e) {
     }
 }
 
+// Funktion zum Ermitteln der Drop-Position
 function getDropPosition(container, y) {
     const draggableElements = [...container.querySelectorAll('.stop-card:not(.dragging)')];
     
+    // Finde den nächsten Stop, der über der Drop-Position liegt
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = y - box.top - box.height / 2;
         
+        // Wenn der aktuelle Stop näher zur Drop-Position ist als der vorherige, aktualisiere die nächste Position
         if (offset < 0 && offset > closest.offset) {
             return { offset: offset, element: child };
         } else {
@@ -645,18 +677,23 @@ function getDropPosition(container, y) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
+// Drop-Event für Stopps
 async function handleDrop(e) {
     e.preventDefault();
     const draggingElement = document.querySelector('.dragging');
     
     if (draggingElement) {
+        // Hole das Drop-Container
         const targetContainer = e.target.closest('.stops-container');
         if (!targetContainer) return;
 
+        // Hole das Source-Container
         const sourceContainer = draggingElement.closest('.stops-container');
         if (!sourceContainer) return;
 
+        // Überprüfe, ob das Ziel ein TK-Container ist
         const isTKContainer = targetContainer.getAttribute('data-vehicle') === 'tk';
+        // Überprüfe, ob das Dragging-Element ein TK-Stop ist
         const isTKStop = draggingElement.classList.contains('tk-stop');
         
         // Erlaube nur TK-Stops in TK-Container und Regular-Stops in Regular/Mitarbeiter-Container
@@ -694,14 +731,17 @@ async function handleDrop(e) {
             const routeColor = routeCard.style.borderColor;
             const regularStops = [...container.querySelectorAll('.stop-card:not(.tk-stop)')];
             
+            // Wenn keine Hausbesuche in der Route sind, setze die Dauer auf 0
             if (regularStops.length === 0) {
                 updateRouteDuration(routeCard, 0);
             } else {
+                // Hole den Startpunkt der Route
                 const origin = new google.maps.LatLng(
                     routeCard.dataset.vehicleStartLat, 
                     routeCard.dataset.vehicleStartLng
                 );
                 
+                // Erstelle Waypoints für die Route
                 const waypoints = regularStops.map(stop => ({
                     location: new google.maps.LatLng(
                         parseFloat(stop.querySelector('[data-lat]').dataset.lat),
@@ -710,6 +750,7 @@ async function handleDrop(e) {
                     stopover: true
                 }));
 
+                // Erstelle die DirectionsRequest
                 const request = {
                     origin: origin,
                     destination: origin,
@@ -743,7 +784,7 @@ async function handleDrop(e) {
                 renderer.setMap(null);
             });
 
-            // Blende die Route des Mitarbeiters ein
+            // Blende die Route des Mitarbeiters wieder ein, wo der Drop stattgefunden hat
             directionsRenderers.forEach(renderer => {
                 if (renderer.customData?.vehicleName === vehicleName) {
                     renderer.setMap(map);
@@ -756,9 +797,9 @@ async function handleDrop(e) {
     }
 }
 
-// Stoppnummern aktualisieren
+// Stoppnummern aktualisieren, wenn ein Stop gezogen wurde
 function updateStopNumbers() {
-    // Nur Container, die keine unassigned Container sind
+    // Nur Container, die keine unzugewiesenen Container sind
     document.querySelectorAll('.stops-container:not([data-vehicle="tk"]):not([data-vehicle="regular"])').forEach(container => {
         // Nur Nicht-TK-Stopps nummerieren
         const regularStops = container.querySelectorAll('.stop-card:not(.tk-stop)');
@@ -798,12 +839,13 @@ function updateStopNumbers() {
     });
 }
 
-// Optimierte Routen aktualisieren
+// Optimierte Routen aktualisieren für Backend, wenn ein Stop gezogen wurde
 function updateOptimizedRoutes() {
     const optimized_routes = [];
     const assigned_tk_stops = new Set();
     const assigned_regular_stops = new Set();
-    
+
+    // Sammle alle zugewiesenen Routen
     document.querySelectorAll('.stops-container:not([data-vehicle="tk"]):not([data-vehicle="regular"])').forEach((container) => {
         const routeCard = container.closest('.route-card');
         const vehicleName = container.getAttribute('data-vehicle');
@@ -833,8 +875,10 @@ function updateOptimizedRoutes() {
                 } : null
             };
             
+            // Füge den Stop zu der Route hinzu
             routeInfo.stops.push(stopInfo);
             
+            // Füge den Stop zu den zugewiesenen Stops hinzu
             if (isTKStop) {
                 assigned_tk_stops.add(stopInfo.patient);
             } else {
@@ -845,10 +889,11 @@ function updateOptimizedRoutes() {
         optimized_routes.push(routeInfo);
     });
     
-    // Sammle nicht zugewiesene Stops
+    // Sammle alle unzugewiesenen Stops
     const unassigned_tk_stops = [];
     const unassigned_regular_stops = [];
     
+    // Sammle alle unzugewiesenen TK-Stops
     document.querySelector('.stops-container[data-vehicle="tk"]')?.querySelectorAll('.stop-card').forEach(stop => {
         const patient = stop.querySelector('strong').textContent;
         if (!assigned_tk_stops.has(patient)) {
@@ -868,6 +913,7 @@ function updateOptimizedRoutes() {
         }
     });
     
+    // Sammle alle unzugewiesenen Regular-Stops
     document.querySelector('.stops-container[data-vehicle="regular"]')?.querySelectorAll('.stop-card').forEach(stop => {
         const patient = stop.querySelector('strong').textContent;
         if (!assigned_regular_stops.has(patient)) {
@@ -887,6 +933,7 @@ function updateOptimizedRoutes() {
         }
     });
 
+    // Sende die Routen und unzugewiesenen Stops an das Backend
     fetch('/update_routes', {
         method: 'POST',
         headers: {
@@ -907,34 +954,31 @@ function updateOptimizedRoutes() {
         }
     })
     .catch(error => console.error('Error updating routes:', error));
-// Fügen Sie ein Event-Listener für das Drag-Ende hinzu
-document.querySelectorAll('.stop-card').forEach(stopCard => {
-    stopCard.addEventListener('dragend', () => {
-        // Aktualisieren Sie die Routen nach dem Drag-Ende
-        updateOptimizedRoutes();
-    });
-});
 }
 
 // ==========================================
 // Routen-Export
 // ==========================================
+
+// Event-Listener für den Export-Button
 document.getElementById('exportButton')?.addEventListener('click', async () => {
     const tkContainer = document.querySelector('.stops-container[data-vehicle="tk"]');
     const regularContainer = document.querySelector('.stops-container[data-vehicle="regular"]');
     
+    // Überprüfe, ob es unzugewiesene TK- oder Regular-Stops gibt
     const hasTKStops = tkContainer && tkContainer.querySelectorAll('.stop-card').length > 0;
     const hasRegularStops = regularContainer && regularContainer.querySelectorAll('.stop-card').length > 0;
     
+    // Wenn es Stops gibt, zeige ein Popup an
     if (hasTKStops || hasRegularStops) {
-        // Erstelle den passenden Text basierend auf den nicht zugewiesenen Stops
+        // Erstelle den passenden Text basierend auf den unzugewiesenen Stops
         let warningText = '';
         if (hasTKStops && hasRegularStops) {
-            warningText = 'Es gibt noch nicht zugeordnete TK-Fälle und reguläre Patienten.';
+            warningText = 'Es gibt noch unzugewiesene Telefonkontakte und Hausbesuche.';
         } else if (hasTKStops) {
-            warningText = 'Es gibt noch nicht zugeordnete TK-Fälle.';
+            warningText = 'Es gibt noch unzugewiesene Telefonkontakte.';
         } else {
-            warningText = 'Es gibt noch nicht zugeordnete reguläre Patienten.';
+            warningText = 'Es gibt noch unzugewiesene Hausbesuche.';
         }
         warningText += ' Möchten Sie trotzdem fortfahren?';
         
@@ -942,13 +986,14 @@ document.getElementById('exportButton')?.addEventListener('click', async () => {
         document.getElementById('export-confirmation-text').textContent = warningText;
         document.getElementById('export-confirmation').style.display = 'block';
     } else {
-        // Wenn keine unassigned stops, direkt exportieren
+        // Wenn keine unzugewiesenen Stops, direkt exportieren
         window.location.href = '/export_routes';
     }
 });
 
+// Event-Listener für den Popup-Confirm-Button
 document.getElementById('confirmExport')?.addEventListener('click', () => {
-    // Hide popup and trigger download
+    // Verstecke das Popup und starte den Download
     document.getElementById('export-confirmation').style.display = 'none';
     window.location.href = '/export_routes';
 });
@@ -957,6 +1002,8 @@ document.getElementById('confirmExport')?.addEventListener('click', () => {
 // ==========================================
 // UI Event Handler
 // ==========================================
+
+// Funktion zum Toggle der Info-Popups
 function toggleInfo(id) {
     // Schließe zuerst alle Popups
     document.querySelectorAll('.info-popup').forEach(popup => {
@@ -983,9 +1030,15 @@ document.addEventListener('click', function(event) {
     }
 });
 
+
+// ==========================================
+// Route-Card Hover-Effekte
+// ==========================================
+
 // Event-Listener für Route-Card Hover
 function setupRouteHoverEffects() {
     document.querySelectorAll('.route-card').forEach(card => {
+        // Hover-Effekt für die Route
         card.addEventListener('mouseenter', () => highlightRoute(card, true));
         card.addEventListener('mouseleave', () => highlightRoute(card, false));
         
@@ -997,6 +1050,7 @@ function setupRouteHoverEffects() {
     });
 }
 
+// Funktion zum Highlight der Route
 function highlightRoute(card, highlight) {
     const container = card.querySelector('.stops-container');
     const vehicleName = container ? container.getAttribute('data-vehicle') : null;
@@ -1009,6 +1063,7 @@ function highlightRoute(card, highlight) {
         // Prüfe ob es die Route des Mitarbeiters ist
         const isRelevantRoute = renderer.customData?.vehicleName === vehicleName;
         
+        // Setze die Map auf null, wenn die Route nicht relevant ist
         if (isRelevantRoute) {
             renderer.setMap(map);
         } else {
@@ -1022,6 +1077,7 @@ function highlightRoute(card, highlight) {
         const isRelevantVehicle = marker.customData?.type === 'vehicle' && 
                                  marker.customData.name === vehicleName;
         
+        // Setze die Map auf null, wenn der Marker nicht relevant ist
         marker.setMap(
             (isRelevantPatient || isRelevantVehicle) ? 
             map : 
@@ -1030,6 +1086,7 @@ function highlightRoute(card, highlight) {
     });
 }
 
+// Funktion zum Highlight des Patienten
 function highlightStop(stop, highlight) {
     const patientName = stop.querySelector('strong').textContent;
     
@@ -1062,6 +1119,7 @@ function highlightStop(stop, highlight) {
                 // Setze den Marker in den Vordergrund
                 marker.setZIndex(google.maps.Marker.MAX_ZINDEX + 1);
                 
+                // Animation des Markers
                 marker.animationInterval = setInterval(() => {
                     if (growing) {
                         scale += 1;
@@ -1078,7 +1136,7 @@ function highlightStop(stop, highlight) {
                     });
                 }, 100);
                 
-                // Zoome zur Position mit Animation
+                // Zoome zur Position des Markers
                 map.setZoom(10);  // Höherer Zoom-Level
                 map.panTo(marker.getPosition());
                 

@@ -15,8 +15,9 @@ from backend.services.date_time_service import DateTimeService
 # Google Cloud Service Account Authentifizierung
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = SERVICE_ACCOUNT_CREDENTIALS
 
+# Flask-App initialisieren
 app = Flask(__name__)
-app.secret_key = '4c4bbaed949dc88d23335ca574e42aef00206906972c27a8015b2be0735033534'
+app.secret_key = FLASK_SECRET_KEY
 
 # Services initialisieren
 route_optimization_service = RouteOptimizationService()
@@ -27,6 +28,7 @@ optimized_routes = []
 unassigned_tk_stops = []
 unassigned_regular_stops = []
 
+# Wochentag aktualisieren
 @app.route('/update-weekday', methods=['POST'])
 def update_weekday():
     try:
@@ -44,6 +46,7 @@ def update_weekday():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+# Upload-Seite
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
@@ -61,6 +64,7 @@ def upload_file():
         saved_routes=optimized_routes
     )
 
+# Route optimieren
 @app.route('/optimize_route', methods=['POST'])
 def optimize_route():
     try:
@@ -76,7 +80,7 @@ def optimize_route():
         non_tk_patients = [p for p in patients if p.visit_type in ("Neuaufnahme", "HB")]
         tk_patients = [p for p in patients if p.visit_type == "TK"]
 
-        # Optimierung durchführen
+        # Optimierung durchführen mit nur Pflegekräften
         response = route_optimization_service.optimize_routes(
             non_tk_patients,
             available_vehicles,
@@ -104,6 +108,7 @@ def optimize_route():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+# Markierungen abrufen
 @app.route('/get_markers')
 def get_markers():
     # Hole aktive Vehicles
@@ -130,6 +135,7 @@ def get_markers():
         ]
     })
 
+# Patienten anzeigen
 @app.route('/patients', methods=['GET', 'POST'])
 def show_patients():
     selected_weekday = session_service.get_selected_weekday()
@@ -139,10 +145,12 @@ def show_patients():
                            patients=patients,
                            weekday=selected_weekday, week_number=week_number, date=date)
 
+# Fahrzeuge anzeigen
 @app.route('/vehicles')
 def show_vehicles():
     return render_template('show_vehicle.html', vehicles=vehicles)
 
+# Variable 'optimized_routes' aktualisieren
 @app.route('/update_routes', methods=['POST'])
 def update_routes():
     try:
@@ -182,10 +190,12 @@ def update_routes():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+# Aktueller Wochentag abrufen
 @app.route('/get-current-weekday')
 def get_current_weekday():
     return jsonify({'weekday': session_service.get_selected_weekday()})
 
+# Saved Routes abrufen
 @app.route('/get_saved_routes')
 def get_saved_routes():
     return jsonify({
@@ -195,13 +205,14 @@ def get_saved_routes():
         'regular_stops': unassigned_regular_stops
     })
 
+# Fahrzeugauswahl aktualisieren
 @app.route('/update_vehicle_selection', methods=['POST'])
 def update_vehicle_selection():
     try:
         data = request.get_json()
         vehicle_updates = data.get('vehicles', [])
         
-        # Update vehicle active status
+        # Jedes Fahrzeug aktualisieren
         for update in vehicle_updates:
             vehicle_id = update.get('id')
             is_active = update.get('active')
@@ -216,6 +227,7 @@ def update_vehicle_selection():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+# Routen exportieren
 @app.route('/export_routes', methods=['GET'])
 def export_routes():
     """Export routes to PDF file"""
@@ -224,7 +236,7 @@ def export_routes():
     target_date = DateTimeService.get_date_from_week(week_number, selected_weekday)
     formatted_date = target_date.strftime("%d_%m_%Y")
     
-    # Create PDF using the service
+    # PDF erstellen
     output = create_route_pdf(
         optimized_routes,
         unassigned_tk_stops,
@@ -240,5 +252,6 @@ def export_routes():
         download_name=f'Optimierte_Routen_{formatted_date}_{selected_weekday}.pdf'
     )
 
+# App starten
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=49200, debug=True)

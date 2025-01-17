@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 class DateTimeService:
     @staticmethod
+    # Gibt das Datum aus der Woche zurück
     def get_date_from_week(week_number: int, weekday_name: str, year: int = None) -> datetime:
         weekdays = {
             'Montag': 0,
@@ -27,12 +28,14 @@ class DateTimeService:
         return target_date
 
     @staticmethod
+    # Gibt das Startdatum aus der Woche zurück für API-Anfragen
     def get_start_time(weekday_name: str, week_number: int = None) -> str:
         target_date = DateTimeService.get_date_from_week(week_number, weekday_name)
         start_time = datetime(target_date.year, target_date.month, target_date.day, 8, 0, 0)
         return start_time.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
     @staticmethod
+    # Gibt das Enddatum aus der Woche zurück für API-Anfragen
     def get_end_time(weekday_name: str, week_number: int = None) -> str:
         target_date = DateTimeService.get_date_from_week(week_number, weekday_name)
         end_time = datetime(target_date.year, target_date.month, target_date.day, 16, 0, 0)
