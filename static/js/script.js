@@ -29,6 +29,17 @@ const COLORS = [
 
 // Initialisiere die Map beim Laden der Seite
 document.addEventListener('DOMContentLoaded', async () => {
+    // Warte bis das Google Maps API verfügbar ist
+    if (typeof google === 'undefined') {
+        await new Promise(resolve => {
+            const checkGoogle = setInterval(() => {
+                if (typeof google !== 'undefined') {
+                    clearInterval(checkGoogle);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
     await initMap();
 });
 
