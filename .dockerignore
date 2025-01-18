@@ -1,0 +1,47 @@
+# Umgebungsvariablen und Konfiguration
+.env
+.env.*
+*.pyc
+__pycache__
+.pytest_cache
+.coverage
+
+# Entwicklungsumgebungen
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+.dockerignore
+Dockerfile
+
+# Dokumentation und Tests
+README.md
+tests/
+docs/
+
+# Temporäre Dateien
+*.log
+.DS_Store
+*.tmp
+
+# Aber erlaube den data Ordner
+!data/
+!data/uploads/
+!data/flask_session/
+
+# Beispieldateien
+example_import_files/

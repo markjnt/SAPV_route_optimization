@@ -1,8 +1,10 @@
 import pandas as pd
 import googlemaps
-from flask import session
+from flask import session, current_app
 from backend.models import Patient, Vehicle, patients, vehicles
 from config import GOOGLE_MAPS_API_KEY
+import os
+from werkzeug.utils import secure_filename
 
 
 class FileService:
@@ -18,6 +20,8 @@ class FileService:
             3: 'Donnerstag',
             4: 'Freitag'
         }
+        self.UPLOAD_FOLDER = '/app/data/uploads'
+        os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
 
     def allowed_file(self, filename):
         # Überprüft, ob die Dateiendung erlaubt ist
@@ -36,9 +40,16 @@ class FileService:
             return None, None
 
     def process_patient_file(self, file, selected_weekday=None):
-        # Verarbeitet die hochgeladene Patientendatei
+        if not file or not self.allowed_file(file.filename):
+            return {'success': False, 'message': 'Ungültige Datei'}
+            
+        # Sichere Datei temporär speichern
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
         try:
-            df = pd.read_excel(file, dtype=str)
+            df = pd.read_excel(filepath)
             
             # Validiere Spalten
             if not self._validate_patient_columns(df):
@@ -87,11 +98,22 @@ class FileService:
                 'success': False,
                 'message': f'Fehler beim Verarbeiten der Datei: {str(e)}'
             }
+        finally:
+            # Lösche temporäre Datei
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
     def process_vehicle_file(self, file):
-        # Verarbeitet die hochgeladene Fahrzeugdatei
+        if not file or not self.allowed_file(file.filename):
+            return {'success': False, 'message': 'Ungültige Datei'}
+            
+        # Sichere Datei temporär speichern
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
         try:
-            df = pd.read_excel(file, dtype=str)
+            df = pd.read_excel(filepath)
             
             if not self._validate_vehicle_columns(df):
                 return {
@@ -127,6 +149,10 @@ class FileService:
                 'success': False,
                 'message': f'Fehler beim Verarbeiten der Datei: {str(e)}'
             }
+        finally:
+            # Lösche temporäre Datei
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
     def _validate_patient_columns(self, df):
         # Validiert die Spalten der Patientendatei

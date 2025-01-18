@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, flash, send_file
+from flask import Flask, render_template, request, jsonify, flash, send_file, session
 from config import GOOGLE_MAPS_API_KEY, FLASK_SECRET_KEY
 from backend.handlers import (
     handle_patient_upload, 
@@ -10,10 +10,21 @@ from backend.services.route_service import RouteOptimizationService
 from backend.services.session_service import SessionService
 from backend.models import patients, vehicles
 from backend.services.date_time_service import DateTimeService
+import os
 
 # Flask-App initialisieren
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
+
+# Upload und Session Konfiguration
+UPLOAD_FOLDER = '/app/data/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = '/app/data/flask_session'
+
+# Erstelle die notwendigen Ordner
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
 
 # Services initialisieren
 route_optimization_service = RouteOptimizationService()
