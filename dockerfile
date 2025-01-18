@@ -17,11 +17,10 @@ COPY . .
 
 # Umgebungsvariablen setzen
 ENV FLASK_APP=app.py
-ENV FLASK_ENV=development
-ENV FLASK_DEBUG=1
+ENV FLASK_ENV=production
 
 # Port freigeben
 EXPOSE 49200
 
-# Start Command mit Flask Development Server
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=49200"]
+# Start Command mit Gunicorn (single worker)
+CMD ["gunicorn", "--workers=1", "--bind=0.0.0.0:49200", "--timeout=120", "--access-logfile=-", "app:app"]
