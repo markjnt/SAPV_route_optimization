@@ -41,7 +41,7 @@ docker pull markjnt/palliroute
 
 Vergeben Sie ein Volume mit der zuvor heruntergeladenen Service Account JSON Datei.
 ```bash
-docker run -d \                                       
+docker run -d \
   --name palliroute \
   -p 49200:49200 \
   --env-file .env \

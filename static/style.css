@@ -803,3 +803,25 @@ th {
 .section button:hover {
     background-color: #357abd;
 }
+
+/* ==========================================
+   Drag & Drop Styles
+   ========================================== */
+.drop-indicator {
+    height: 2px;
+    background-color: #4a90e2;
+    margin: 4px 0;
+    border-radius: 1px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.stops-container.drag-over {
+    background: #e9f0f7;
+    transition: background-color 0.2s ease;
+}
