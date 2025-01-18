@@ -58,7 +58,7 @@ def _create_single_route_pdf(route, selected_weekday, formatted_date):
         topMargin=1*cm,
         bottomMargin=1*cm,
         title=f"Optimierte Route: {route['vehicle']}",
-        author="Routenoptimierungssystem",
+        author="PalliRoute",
         subject=f"Optimierte Route für {selected_weekday}, {formatted_date}",
     )
     
@@ -89,7 +89,7 @@ def _create_tk_pdf(tk_stops, selected_weekday, formatted_date):
         topMargin=1*cm,
         bottomMargin=1*cm,
         title="Unzugewiesene Telefonkontakte",
-        author="Routenoptimierungssystem",
+        author="PalliRoute",
         subject=f"Unzugewiesene Telefonkontakte für {selected_weekday}, {formatted_date}",
     )
     
@@ -120,7 +120,7 @@ def _create_unassigned_regular_pdf(regular_stops, selected_weekday, formatted_da
         topMargin=1*cm,
         bottomMargin=1*cm,
         title="Unzugewiesene Hausbesuche",
-        author="Routenoptimierungssystem",
+        author="PalliRoute",
         subject=f"Unzugewiesene Hausbesuche für {selected_weekday}, {formatted_date}",
     )
     
