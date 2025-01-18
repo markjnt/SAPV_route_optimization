@@ -206,6 +206,13 @@ function clearRoutes() {
 // Button "Route optimieren"
 document.getElementById('optimizeButton').addEventListener('click', async () => {
     clearRoutes(); // Alte Routen entfernen
+    
+    // Animation starten
+    const button = document.getElementById('optimizeButton');
+    const icon = button.querySelector('i');
+    icon.classList.add('spinning');
+    button.disabled = true;
+    
     try {
         // Sende eine POST-Anfrage an den Server, um die Routen zu optimieren
         const response = await fetch('/optimize_route', { method: 'POST' });
@@ -221,6 +228,10 @@ document.getElementById('optimizeButton').addEventListener('click', async () => 
         }
     } catch (error) {
         console.error("Fetch-Fehler bei /optimize_route:", error);
+    } finally {
+        // Animation stoppen
+        icon.classList.remove('spinning');
+        button.disabled = false;
     }
 });
 
