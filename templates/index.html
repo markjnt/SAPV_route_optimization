@@ -29,108 +29,116 @@
                             </select>
                             <button id="tomorrowBtn"><i class="fas fa-arrow-right" style="margin-right: 10px;"></i>Morgen</button>
                         </div>
-
-                        <div class="upload-section">
-                            <div class="upload-form">
-                                <h2><i class="fas fa-users" style="color: #000000; margin-right: 10px;"></i>Mitarbeiter-Import</h2>
-                                <div class="info-icon" onclick="toggleInfo('staff-info')">
-                                    <i class="fas fa-info-circle"></i>
+                        <div class="upload-form">
+                            <h2><i class="fas fa-users" style="color: #000000; margin-right: 10px;"></i>Mitarbeiter-Import</h2>
+                            <div class="info-icon" onclick="toggleInfo('staff-info')">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div class="info-popup" id="staff-info">
+                                <div class="info-content">
+                                    <span class="close-btn" onclick="toggleInfo('staff-info')">&times;</span>
+                                    <h3>Excel-Anforderungen für Mitarbeiterliste</h3>
+                                    <table class="example-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Nachname</th>
+                                                <th>Vorname</th>
+                                                <th>Funktion</th>
+                                                <th>Strasse</th>
+                                                <th>PLZ</th>
+                                                <th>Ort</th>
+                                                <th>Stellenumfang</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Schmidt</td>
+                                                <td>Maria</td>
+                                                <td>Pflegekraft</td>
+                                                <td>Bergstr. 5</td>
+                                                <td>51645</td>
+                                                <td>Gummersbach</td>
+                                                <td>100</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <p><strong>Funktionen:</strong> 
+                                        <span class="function-type pflege">Pflegekraft</span>, 
+                                        <span class="function-type arzt">Arzt</span> oder 
+                                        <span class="function-type honorar">Honorararzt</span>
+                                    </p>
                                 </div>
-                                <div class="info-popup" id="staff-info">
-                                    <div class="info-content">
-                                        <span class="close-btn" onclick="toggleInfo('staff-info')">&times;</span>
-                                        <h3>Excel-Anforderungen für Mitarbeiterliste</h3>
-                                        <table class="example-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Nachname</th>
-                                                    <th>Vorname</th>
-                                                    <th>Funktion</th>
-                                                    <th>Strasse</th>
-                                                    <th>PLZ</th>
-                                                    <th>Ort</th>
-                                                    <th>Stellenumfang</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td>Schmidt</td>
-                                                    <td>Maria</td>
-                                                    <td>Pflegekraft</td>
-                                                    <td>Bergstr. 5</td>
-                                                    <td>51645</td>
-                                                    <td>Gummersbach</td>
-                                                    <td>100</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                        <p><strong>Funktionen:</strong> Arzt, Pflegekraft oder Honorararzt</p>
-                                    </div>
-                                </div>
-                                <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
-                                    <input type="hidden" name="upload_type" value="vehicles">
+                            </div>
+                            <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+                                <input type="hidden" name="upload_type" value="vehicles">
+                                <div class="file-input-container">
                                     <input type="file" name="vehicle_file" id="vehicle_file" accept=".xlsx,.xls">
-                                    <button type="submit"><i class="fas fa-file-import" style="margin-right: 10px;"></i>Importieren</button>
-                                </form>
-                                {% if vehicles %}
-                                <a href="{{ url_for('show_vehicles') }}">Mitarbeiterliste anzeigen</a>
-                                {% endif %}
+                                </div>
+                                <button type="submit"><i class="fas fa-file-import" style="margin-right: 10px;"></i>Importieren</button>
+                            </form>
+                            {% if vehicles %}
+                            <a href="{{ url_for('show_vehicles') }}">Mitarbeiterliste anzeigen</a>
+                            {% endif %}
+                        </div>
+                        <div class="upload-form">
+                            <h2><i class="fas fa-user" style="color: #000000; margin-right: 10px;"></i>Patienten-Import</h2>
+                            <div class="info-icon" onclick="toggleInfo('patient-info')">
+                                <i class="fas fa-info-circle"></i>
                             </div>
-
-                            <div class="upload-form">
-                                <h2><i class="fas fa-user" style="color: #000000; margin-right: 10px;"></i>Patienten-Import</h2>
-                                <div class="info-icon" onclick="toggleInfo('patient-info')">
-                                    <i class="fas fa-info-circle"></i>
+                            <div class="info-popup" id="patient-info">
+                                <div class="info-content">
+                                    <span class="close-btn" onclick="toggleInfo('patient-info')">&times;</span>
+                                    <h3>Excel-Anforderungen für Patientenliste</h3>
+                                    <table class="example-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Nachname</th>
+                                                <th>Vorname</th>
+                                                <th>Strasse</th>
+                                                <th>PLZ</th>
+                                                <th>Ort</th>
+                                                <th>KW</th>
+                                                <th>Montag</th>
+                                                <th>Uhrzeit/Info Montag</th>
+                                                <th>...</th>
+                                                <th>Freitag</th>
+                                                <th>Uhrzeit/Info Freitag</th>
+                                                
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Mustermann</td>
+                                                <td>Max</td>
+                                                <td>Hauptstr. 1</td>
+                                                <td>51643</td>
+                                                <td>Gummersbach</td>
+                                                <td>13</td>
+                                                <td>HB</td>
+                                                <td>Nach 9 Uhr</td>
+                                                <td>...</td>
+                                                <td>TK</td>
+                                                <td>ab 10 Uhr</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <p><strong>Besuchsarten:</strong> 
+                                        <span class="visit-type hb">HB</span>, 
+                                        <span class="visit-type tk">TK</span> oder 
+                                        <span class="visit-type neuaufnahme">Neuaufnahme</span>
+                                    </p>
                                 </div>
-                                <div class="info-popup" id="patient-info">
-                                    <div class="info-content">
-                                        <span class="close-btn" onclick="toggleInfo('patient-info')">&times;</span>
-                                        <h3>Excel-Anforderungen für Patientenliste</h3>
-                                        <table class="example-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Nachname</th>
-                                                    <th>Vorname</th>
-                                                    <th>Strasse</th>
-                                                    <th>PLZ</th>
-                                                    <th>Ort</th>
-                                                    <th>KW</th>
-                                                    <th>Montag</th>
-                                                    <th>Uhrzeit/Info Montag</th>
-                                                    <th>...</th>
-                                                    <th>Freitag</th>
-                                                    <th>Uhrzeit/Info Freitag</th>
-                                                    
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td>Mustermann</td>
-                                                    <td>Max</td>
-                                                    <td>Hauptstr. 1</td>
-                                                    <td>51643</td>
-                                                    <td>Gummersbach</td>
-                                                    <td>13</td>
-                                                    <td>HB</td>
-                                                    <td>Nach 9 Uhr</td>
-                                                    <td>...</td>
-                                                    <td>TK</td>
-                                                    <td>ab 10 Uhr</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                        <p><strong>Besuchsarten:</strong> HB, TK oder Neuaufnahme</p>
-                                    </div>
-                                </div>
-                                <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
-                                    <input type="hidden" name="upload_type" value="patients">
+                            </div>
+                            <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+                                <input type="hidden" name="upload_type" value="patients">
+                                <div class="file-input-container">
                                     <input type="file" name="patient_file" id="patient_file" accept=".xlsx,.xls">
-                                    <button type="submit"><i class="fas fa-file-import" style="margin-right: 10px;"></i>Importieren</button>
-                                </form>
-                                {% if patients %}
-                                <a href="{{ url_for('show_patients') }}">Patientenliste anzeigen</a>
-                                {% endif %}
-                            </div>
+                                </div>
+                                <button type="submit"><i class="fas fa-file-import" style="margin-right: 10px;"></i>Importieren</button>
+                            </form>
+                            {% if patients %}
+                            <a href="{{ url_for('show_patients') }}">Patientenliste anzeigen</a>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -152,12 +160,10 @@
                     </div>
 
                     <div class="section" id="resultsSection" style="display: none;">
-                        <h2>Optimierte Routen</h2>
                         <div id="routeResults"></div>
                         <button id="exportButton" class="export-button"><i class="fas fa-file-export" style="margin-right: 10px;"></i>Exportieren</button>
                     </div>
 
-                    <!-- Ersetze die beiden Popups durch ein gemeinsames -->
                     <div class="info-popup" id="export-confirmation">
                         <div class="info-content">
                             <span class="close-btn" onclick="toggleInfo('export-confirmation')">&times;</span>

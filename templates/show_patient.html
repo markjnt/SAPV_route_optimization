@@ -14,8 +14,9 @@
         </div>
 
         <h1><i class="fas fa-user" style="color: #000000; margin-right: 10px;"></i>Patientenliste</h1>
-
-        <h2>{{ weekday }}, {{ date.strftime('%d.%m.%Y') }} (KW {{ week_number }})</h2>
+        <div class="date-container">
+            <h3>{{ weekday }}, {{ date.strftime('%d.%m.%Y') }} (KW {{ week_number }})</h3>
+        </div>
 
         <table>
             <thead>
