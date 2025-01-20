@@ -23,7 +23,6 @@ def handle_patient_upload(request, selected_weekday=None):
         return redirect(url_for('upload_file'))
 
     try:
-        app.last_patient_upload = request
         result = file_service.process_patient_file(file, selected_weekday)
         flash(result['message'])
         if result['success']:
@@ -61,14 +60,6 @@ def handle_vehicle_upload(request):
         flash(f'Fehler beim Verarbeiten der Mitarbeiterdatei: {str(e)}')
     
     return redirect(url_for('upload_file'))
-
-def reload_patients_for_weekday(weekday):
-    # Handler für das Neuladen der Patienten für einen bestimmten Wochentag
-    if not hasattr(app, 'last_patient_upload'):
-        flash('Keine vorherige Patientendatei verfügbar.')
-        return redirect(url_for('upload_file'))
-    
-    return handle_patient_upload(app.last_patient_upload, weekday) 
 
 def geocode_address(address):
     # Handler für die Geocodierung einer Adresse

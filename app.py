@@ -3,7 +3,6 @@ from config import GOOGLE_MAPS_API_KEY, FLASK_SECRET_KEY
 from backend.handlers import (
     handle_patient_upload, 
     handle_vehicle_upload,
-    reload_patients_for_weekday
 )
 from backend.services.pdf_service import create_route_pdf
 from backend.services.route_service import RouteOptimizationService
@@ -43,7 +42,6 @@ def update_weekday():
         weekday = data.get('weekday')
         if weekday:
             session_service.set_selected_weekday(weekday)
-            reload_patients_for_weekday(weekday)
             return jsonify({
                 'status': 'success', 
                 'weekday': weekday,
