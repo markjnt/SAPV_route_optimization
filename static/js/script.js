@@ -253,6 +253,8 @@ async function updateWeekdayDisplay() {
         const data = await response.json();
         const weekdaySelect = document.getElementById('weekdaySelect');
         weekdaySelect.value = data.weekday;
+        // Trigger change event um die UI zu aktualisieren
+        await loadMarkers();
     } catch (err) {
         console.error("Fehler beim Abrufen des aktuellen Wochentags:", err);
     }
@@ -260,65 +262,68 @@ async function updateWeekdayDisplay() {
 
 // DOM-Events für Wochentags-Funktionalität, Button "Morgen" und Flash Message
 document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        // Initialisiere den aktuellen Wochentag VOR der Map-Initialisierung
+        await updateWeekdayDisplay();
+        
+        // Dann initialisiere die Map
+        await initMap();
 
-    // Initialisiere den aktuellen Wochentag
-    updateWeekdayDisplay();
+        const weekdaySelect = document.getElementById('weekdaySelect');
+        const tomorrowBtn = document.getElementById('tomorrowBtn');
 
-    // Initialisiere die Map und lade die Routen
-    await initMap();
+        // Array der Wochentage
+        const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
-    const weekdaySelect = document.getElementById('weekdaySelect');
-    const tomorrowBtn = document.getElementById('tomorrowBtn');
+        // Wochentag-Dropdown ändern
+        weekdaySelect.addEventListener('change', async function() {
+            try {
+                const response = await fetch('/update-weekday', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ weekday: this.value })
+                });
+                const data = await response.json();
+                
+                // Aktualisiere die Anzeige und lade die Marker neu
+                await updateWeekdayDisplay();
+            } catch (err) {
+                console.error("Fehler beim Aktualisieren des Wochentags:", err);
+            }
+        });
 
-    // Array der Wochentage
-    const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+        // Button "Morgen"
+        tomorrowBtn.addEventListener('click', async function() {
+            const today = new Date();
+            const todayIndex = today.getDay();
+            let tomorrowIndex;
 
-    // Wochentag-Dropdown ändern, Server-Anfrage senden und Wochentag anzeigen
-    weekdaySelect.addEventListener('change', async function() {
-        try {
-            const response = await fetch('/update-weekday', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ weekday: this.value })
-            });
-            const data = await response.json();
-            console.log("Server Response:", data);
-            
-            // Aktualisiere den angezeigten Wochentag
-            await updateWeekdayDisplay();
-        } catch (err) {
-            console.error("Fehler beim Aktualisieren des Wochentags:", err);
-        }
-    });
+            if (todayIndex === 5 || todayIndex === 6 || todayIndex === 0) {
+                tomorrowIndex = 1;
+            } else {
+                tomorrowIndex = (todayIndex + 1) % 7;
+            }
 
-    // Button "Morgen"
-    tomorrowBtn.addEventListener('click', async function() {
-        const today = new Date();
-        const todayIndex = today.getDay();
-        let tomorrowIndex;
+            // Setze erst den Wert
+            weekdaySelect.value = weekdays[tomorrowIndex];
+            // Dann triggere das Change-Event manuell
+            const changeEvent = new Event('change');
+            weekdaySelect.dispatchEvent(changeEvent);
+        });
 
-        // Wenn heute Freitag (5), Samstag (6) oder Sonntag (0) ist, dann setze auf Montag (1)
-        if (todayIndex === 5 || todayIndex === 6 || todayIndex === 0) {
-            tomorrowIndex = 1; // Montag
-        } else {
-            tomorrowIndex = (todayIndex + 1) % 7;
-        }
-
-        // Wochentag-Dropdown ändern und Trigger 'change'
-        weekdaySelect.value = weekdays[tomorrowIndex];
-        weekdaySelect.dispatchEvent(new Event('change'));
-    });
-
-    // Flash Message mit Timeout
-    const flashMessage = document.getElementById('flash-message');
-    if (flashMessage) {
-        setTimeout(() => {
-            flashMessage.style.opacity = '0';
-            flashMessage.style.transition = 'opacity 0.5s ease';
+        // Flash Message mit Timeout
+        const flashMessage = document.getElementById('flash-message');
+        if (flashMessage) {
             setTimeout(() => {
-                flashMessage.remove();
-            }, 500);
-        }, 10000);
+                flashMessage.style.opacity = '0';
+                flashMessage.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => {
+                    flashMessage.remove();
+                }, 500);
+            }, 10000);
+        }
+    } catch (error) {
+        console.error("Fehler bei der Initialisierung:", error);
     }
 });
 
