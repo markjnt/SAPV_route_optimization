@@ -20,7 +20,7 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
 # Port freigeben
-EXPOSE 49200
+EXPOSE 8000
 
 # Start Command mit Gunicorn (single worker)
-CMD ["gunicorn", "--workers=1", "--bind=0.0.0.0:49200", "--timeout=120", "--access-logfile=-", "app:app"]
+CMD ["gunicorn", "--workers=1", "--bind=0.0.0.0:8000", "--timeout=120", "--access-logfile=-", "app:app"]
