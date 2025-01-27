@@ -41,7 +41,7 @@ docker pull markjnt/palliroute
 
 Vergeben Sie ein Volume mit der zuvor heruntergeladenen Service Account JSON Datei:
 ```bash
-docker run -d --name my-palliroute -p 8000:8000 --env-file .env -v /path/to/your/service-account-key.json:/app/google-credentials.json markjnt/palliroute
+docker run -d --name my-palliroute -p 8000:8000 --env-file .env -v '/path/to/your/service-account-key.json:/app/google-credentials.json' markjnt/palliroute
 ```
 
 Die Anwendung ist unter `http://localhost:8000` sowie im Netzwerk unter der IP-Adresse des Hosts (z. B. `192.168.1.100:8000`) erreichbar
