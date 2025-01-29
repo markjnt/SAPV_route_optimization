@@ -4,7 +4,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from PyPDF2 import PdfMerger
+from pypdf import PdfMerger
 
 def create_route_pdf(optimized_routes, unassigned_tk_stops, unassigned_regular_stops, selected_weekday, formatted_date):
     # Erstellt ein PDF-Dokument mit Route-Informationen
