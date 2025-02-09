@@ -13,7 +13,3 @@ __pycache__/
 # Datenordner
 data/uploads/*
 data/flask_session/*
-
-# Docker
-.dockerignore
-Dockerfile
