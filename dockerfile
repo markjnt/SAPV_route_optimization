@@ -18,6 +18,7 @@ COPY . .
 # Umgebungsvariablen setzen
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
+ENV GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
 
 # Port freigeben
 EXPOSE 8000

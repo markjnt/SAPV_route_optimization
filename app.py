@@ -16,10 +16,11 @@ app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
 
 # Upload und Session Konfiguration
-UPLOAD_FOLDER = '/app/data/uploads'
+base_dir = os.path.join(os.getcwd(), 'data')  # Relativ zum aktuellen Verzeichnis
+UPLOAD_FOLDER = os.path.join(base_dir, 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_FILE_DIR'] = '/app/data/flask_session'
+app.config['SESSION_FILE_DIR'] = os.path.join(base_dir, 'flask_session')
 
 # Erstelle die notwendigen Ordner
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -259,4 +260,4 @@ def export_routes():
 
 # App starten
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=49200, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

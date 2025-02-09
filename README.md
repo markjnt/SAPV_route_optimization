@@ -20,13 +20,11 @@ Erstellen Sie eine `.env` Datei mit folgenden Variablen:
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 GOOGLE_PROJECT_ID=your_google_project_id
 FLASK_SECRET_KEY=your_secret_key
-GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
 ```
 
 - Ersetzen Sie `your_google_maps_api_key` mit Ihrem Google Maps API Key.
 - Ersetzen Sie `your_google_project_id` mit Ihrer Google Project ID.
 - Ersetzen Sie `your_secret_key` mit einem sicheren Schlüssel für die Flask Session.
-- Der Pfad `/app/google-credentials.json` ist der fixe Pfad im Docker Container für die Service Account Credentials.
 
 ## 3. Docker Ausführung
 

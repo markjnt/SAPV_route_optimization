@@ -9,3 +9,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Datenordner
+data/uploads/*
+data/flask_session/*
+
+# Docker
+.dockerignore
+Dockerfile
