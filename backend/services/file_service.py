@@ -20,9 +20,6 @@ class FileService:
             3: 'Donnerstag',
             4: 'Freitag'
         }
-        base_dir = os.path.join(os.getcwd(), 'data')
-        self.UPLOAD_FOLDER = os.path.join(base_dir, 'uploads')
-        os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
 
     def allowed_file(self, filename):
         # Überprüft, ob die Dateiendung erlaubt ist

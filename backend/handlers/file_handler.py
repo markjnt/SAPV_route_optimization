@@ -26,7 +26,7 @@ def handle_patient_upload(request, selected_weekday=None):
         result = file_service.process_patient_file(file, selected_weekday)
         flash(result['message'])
         if result['success']:
-            return redirect(url_for('show_patients'))
+            return redirect(url_for('main.show_patients'))
     except Exception as e:
         flash(f'Fehler beim Verarbeiten der Patientendatei: {str(e)}')
     
@@ -55,7 +55,7 @@ def handle_vehicle_upload(request):
         result = file_service.process_vehicle_file(file)
         flash(result['message'])
         if result['success']:
-            return redirect(url_for('show_vehicles'))
+            return redirect(url_for('main.show_vehicles'))
     except Exception as e:
         flash(f'Fehler beim Verarbeiten der Mitarbeiterdatei: {str(e)}')
     
