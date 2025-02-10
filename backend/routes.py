@@ -3,7 +3,7 @@ from backend.services.pdf_service import create_route_pdf
 from backend.services.date_time_service import DateTimeService
 from backend.handlers import handle_patient_upload, handle_vehicle_upload
 from backend.models import patients, vehicles
-from config import GOOGLE_MAPS_API_KEY
+from config import Config
 from backend.services.route_service import RouteOptimizationService
 from backend.services.session_service import SessionService
 import logging
@@ -35,7 +35,7 @@ def upload_file():
         'index.html',
         patients=patients,
         vehicles=vehicles,
-        google_maps_api_key=GOOGLE_MAPS_API_KEY,
+        google_maps_api_key=Config.GOOGLE_MAPS_API_KEY,
         saved_routes=optimized_routes
     )
 
