@@ -1,7 +1,7 @@
 import pandas as pd
 import googlemaps
 from flask import session, current_app
-from backend.models import Patient, Vehicle, patients, vehicles
+from models import Patient, Vehicle, patients, vehicles
 from config import Config
 import os
 from werkzeug.utils import secure_filename

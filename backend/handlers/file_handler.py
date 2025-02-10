@@ -1,5 +1,5 @@
 from flask import flash, redirect, url_for, current_app as app
-from backend.services.file_service import FileService
+from services.file_service import FileService
 
 file_service = FileService()
 

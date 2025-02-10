@@ -9,11 +9,11 @@ RUN mkdir -p /app/data/uploads /app/data/flask_session && \
     chmod -R 777 /app/data
 
 # Kopiere zuerst die requirements.txt und installiere Abhängigkeiten
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopiere dann den restlichen Projektcode
-COPY . .
+# Kopiere dann den Backend-Code
+COPY backend/ .
 
 # Umgebungsvariablen setzen
 ENV FLASK_APP=app.py

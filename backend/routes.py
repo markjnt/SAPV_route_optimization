@@ -1,11 +1,11 @@
 from flask import Blueprint, render_template, request, jsonify, flash, send_file
-from backend.services.pdf_service import create_route_pdf
-from backend.services.date_time_service import DateTimeService
-from backend.handlers import handle_patient_upload, handle_vehicle_upload
-from backend.models import patients, vehicles
+from services.pdf_service import create_route_pdf
+from services.date_time_service import DateTimeService
+from handlers import handle_patient_upload, handle_vehicle_upload
+from models import patients, vehicles
 from config import Config
-from backend.services.route_service import RouteOptimizationService
-from backend.services.session_service import SessionService
+from services.route_service import RouteOptimizationService
+from services.session_service import SessionService
 import logging
 
 logger = logging.getLogger(__name__)

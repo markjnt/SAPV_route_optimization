@@ -26,7 +26,7 @@ ENV/
 
 # Docker
 .dockerignore
-Dockerfile
+Dockerfile*
 
 # Dokumentation und Tests
 README.md

@@ -1,6 +1,6 @@
 from google.maps import routeoptimization_v1
-from backend.services.date_time_service import DateTimeService
-from backend.models import patients, vehicles
+from services.date_time_service import DateTimeService
+from models import patients, vehicles
 from config import Config
 
 class RouteOptimizationService:
