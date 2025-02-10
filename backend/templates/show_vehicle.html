@@ -44,10 +44,10 @@
                     <td>{{ vehicle.id }}</td>
                     <td>{{ vehicle.name }}</td>
                     <td>
-                        <span class="funktion-line {% if vehicle.funktion == 'Arzt' %}arzt
-                            {% elif vehicle.funktion == 'Pflegekraft' %}pflege
-                            {% elif vehicle.funktion.startswith('Honorararzt') %}honorar
-                            {% endif %}">
+                        <span class="marker-function {% if vehicle.funktion == 'Arzt' %}arzt
+                           {% elif vehicle.funktion == 'Pflegekraft' %}pflege
+                           {% elif vehicle.funktion == 'Honorararzt' %}honorar
+                           {% elif vehicle.funktion == 'Physiotherapie' %}physio{% endif %}">
                             {{ vehicle.funktion }}
                         </span>
                     </td>

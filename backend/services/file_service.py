@@ -12,7 +12,7 @@ class FileService:
         self.gmaps = googlemaps.Client(Config.GOOGLE_MAPS_API_KEY)
         self.ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
         self.VALID_VISIT_TYPES = {'HB', 'TK', 'Neuaufnahme'}
-        self.VALID_FUNCTIONS = {'Arzt', 'Pflegekraft', 'Honorararzt'}
+        self.VALID_FUNCTIONS = {'Arzt', 'Pflegekraft', 'Honorararzt', 'Physiotherapie'}
         self.WEEKDAY_MAPPING = {
             0: 'Montag',
             1: 'Dienstag',

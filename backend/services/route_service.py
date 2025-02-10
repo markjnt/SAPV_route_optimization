@@ -51,7 +51,10 @@ class RouteOptimizationService:
         vehicles_model = []
         for v in vehicles:
             stellenumfang = getattr(v, 'stellenumfang', 100)
-            seconds = int((stellenumfang / 100.0) * 7 * 3600)
+            # Basis-Sekunden aus Stellenumfang (7h = 25200s bei 100%)
+            base_seconds = int((stellenumfang / 100.0) * 7 * 3600)
+            # Hard cap: Basis + 30 Minuten
+            hard_cap_seconds = base_seconds + (30 * 60)
             
             vehicle_model = {
                 "start_location": {
@@ -64,7 +67,9 @@ class RouteOptimizationService:
                 },
                 "cost_per_hour": 1,
                 "route_duration_limit": {
-                    "max_duration": f"{seconds}s"
+                    "max_duration": f"{hard_cap_seconds}s",
+                    "soft_max_duration": f"{base_seconds}s",
+                    "cost_per_hour_after_soft_max": 2  # Doppelte Kosten nach Überschreitung des Soft Caps
                 }
             }
             vehicles_model.append(vehicle_model)
@@ -73,7 +78,7 @@ class RouteOptimizationService:
     def _get_visit_duration(self, visit_type):
         # Gibt die Dauer in Sekunden für einen Besuchstyp zurück
         durations = {
-            "HB": 2100,  # 35 min
+            "HB": 1200,  # 20 min
             "Neuaufnahme": 7200  # 120 min
         }
         return durations.get(visit_type, 0)

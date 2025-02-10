@@ -9,7 +9,7 @@ let optimized_routes = [];      // Optimierte Routen
 
 // Konstanten für Verweilzeiten
 const VISIT_DWELL_TIMES = {
-    'HB': 35 * 60,          // 35 Minuten in Sekunden
+    'HB': 20 * 60,          // 20 Minuten in Sekunden
     'Neuaufnahme': 120 * 60 // 120 Minuten in Sekunden
 };
 
@@ -155,7 +155,8 @@ async function loadMarkers(existingRoutesData = null) {
                     <div class="marker-function ${
                         v.funktion === 'Arzt' ? 'arzt' : 
                         v.funktion === 'Pflegekraft' ? 'pflege' : 
-                        v.funktion?.toLowerCase().includes('honorararzt') ? 'honorar' : ''
+                        v.funktion === 'Honorararzt' ? 'honorar' :
+                        v.funktion === 'Physiotherapie' ? 'physio' : ''
                     }">${v.funktion || ''}</div>
                     <div class="marker-address">${v.start_address || v.address}</div>
                 </div>
@@ -174,7 +175,8 @@ async function loadMarkers(existingRoutesData = null) {
                     scale: 10,
                     fillColor: v.funktion === 'Arzt' ? '#FF0000' :
                                v.funktion === 'Pflegekraft' ? '#be00fe' :
-                               v.funktion?.toLowerCase().includes('honorararzt') ? '#FF0000' :
+                               v.funktion === 'Honorararzt' ? '#FF0000' :
+                               v.funktion === 'Physiotherapie' ? '#be00fe' :
                                '#666666',
                     fillOpacity: 1,
                     strokeWeight: 2,
@@ -385,7 +387,8 @@ function displayRoutes(data) {
                 <span class="funktion-line ${
                     route.funktion === 'Arzt' ? 'arzt' : 
                     route.funktion === 'Pflegekraft' ? 'pflege' : 
-                    route.funktion?.toLowerCase().includes('honorararzt') ? 'honorar' : ''
+                    route.funktion === 'Honorararzt' ? 'honorar' :
+                    route.funktion === 'Physiotherapie' ? 'physio' : ''
                 }">${route.funktion || ''}</span>
             </div>
             <div class="duration" style="color: ${durationColor}">${route.duration_hrs || 0} / ${route.max_hours}h</div>
@@ -1131,9 +1134,6 @@ function highlightStop(stop, highlight) {
             ...icon,
             scale: 10
         });
-        
-        // Zoom zurück auf Übersicht
-        map.setZoom(9);  // Ursprünglicher Zoom-Level
     });
 
     // Highlight des Patienten
@@ -1163,8 +1163,6 @@ function highlightStop(stop, highlight) {
                     });
                 }, 100);
                 
-                // Zoome zur Position des Markers
-                map.setZoom(10);  // Höherer Zoom-Level
                 map.panTo(marker.getPosition());
                 
             }

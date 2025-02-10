@@ -401,6 +401,7 @@ h2 {
 .funktion-line.arzt { background-color: #ff5a5a; }
 .funktion-line.pflege { background-color: #da6aff; }
 .funktion-line.honorar { background-color: #ff5a5a; }
+.funktion-line.physio { background-color: #da6aff; }
 
 .visit-badge {
     display: inline-block;
@@ -540,6 +541,7 @@ th {
 .marker-function.arzt { background-color: #ff5a5a; }
 .marker-function.pflege { background-color: #da6aff; }
 .marker-function.honorar { background-color: #ff5a5a; }
+.marker-function.physio { background-color: #da6aff; }
 
 .marker-visit-type {
     font-size: 0.9em;
