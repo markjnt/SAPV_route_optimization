@@ -1,5 +1,4 @@
 from flask import Flask
-from config import FLASK_SECRET_KEY
 from backend.routes import routes
 import os
 
