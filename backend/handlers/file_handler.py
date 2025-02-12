@@ -7,20 +7,20 @@ def handle_patient_upload(request, selected_weekday=None):
     # Handler für den Upload von Patientendaten
     if request.method != 'POST':
         flash('Keine Patientendatei ausgewählt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     if 'patient_file' not in request.files:
         flash('Keine Patientendatei ausgewählt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     file = request.files['patient_file']
     if file.filename == '':
         flash('Keine Patientendatei ausgewählt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     if not file_service.allowed_file(file.filename):
         flash('Nur Excel-Dateien sind erlaubt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     try:
         result = file_service.process_patient_file(file, selected_weekday)
@@ -30,26 +30,26 @@ def handle_patient_upload(request, selected_weekday=None):
     except Exception as e:
         flash(f'Fehler beim Verarbeiten der Patientendatei: {str(e)}')
     
-    return redirect(url_for('upload_file'))
+    return redirect(url_for('main.upload_file'))
 
 def handle_vehicle_upload(request):
     # Handler für den Upload von Fahrzeugdaten
     if request.method != 'POST':
         flash('Keine Mitarbeiterdatei ausgewählt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     if 'vehicle_file' not in request.files:
         flash('Keine Mitarbeiterdatei ausgewählt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     file = request.files['vehicle_file']
     if file.filename == '':
         flash('Keine Mitarbeiterdatei ausgewählt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     if not file_service.allowed_file(file.filename):
         flash('Nur Excel-Dateien sind erlaubt.')
-        return redirect(url_for('upload_file'))
+        return redirect(url_for('main.upload_file'))
 
     try:
         result = file_service.process_vehicle_file(file)
@@ -59,7 +59,7 @@ def handle_vehicle_upload(request):
     except Exception as e:
         flash(f'Fehler beim Verarbeiten der Mitarbeiterdatei: {str(e)}')
     
-    return redirect(url_for('upload_file'))
+    return redirect(url_for('main.upload_file'))
 
 def geocode_address(address):
     # Handler für die Geocodierung einer Adresse

@@ -383,7 +383,7 @@ h2 {
 
 .name-line.hb { background-color: #5fff5f; }
 .name-line.tk { background-color: #54a9ff; }
-.name-line.neuaufnahme { background-color: #ff7e4f; }
+.name-line.na { background-color: #ff7e4f; }
 
 .name-line strong { flex: 1; }
 .name-line .visit-type { 
@@ -400,8 +400,9 @@ h2 {
 
 .funktion-line.arzt { background-color: #ff5a5a; }
 .funktion-line.pflege { background-color: #da6aff; }
-.funktion-line.honorar { background-color: #ff5a5a; }
+.funktion-line.honorar { background-color: #e08147; }
 .funktion-line.physio { background-color: #da6aff; }
+.funktion-line.pdl { background-color: #ff5a5a; }
 
 .visit-badge {
     display: inline-block;
@@ -412,7 +413,7 @@ h2 {
 
 .visit-badge.hb { background-color: #5fff5f; }
 .visit-badge.tk { background-color: #54a9ff; }
-.visit-badge.neuaufnahme { background-color: #ff7e4f; }
+.visit-badge.na { background-color: #ff7e4f; }
 
 /* ==========================================
    Info-Popups und Modale
@@ -540,8 +541,9 @@ th {
 
 .marker-function.arzt { background-color: #ff5a5a; }
 .marker-function.pflege { background-color: #da6aff; }
-.marker-function.honorar { background-color: #ff5a5a; }
+.marker-function.honorar { background-color: #e08147; }
 .marker-function.physio { background-color: #da6aff; }
+.marker-function.pdl { background-color: #ff5a5a; }
 
 .marker-visit-type {
     font-size: 0.9em;
@@ -554,7 +556,7 @@ th {
 
 .marker-visit-type.hb { background-color: #00ff00; }
 .marker-visit-type.tk { background-color: #007efc; }
-.marker-visit-type.neuaufnahme { background-color: #ff4400; }
+.marker-visit-type.na { background-color: #ff4400; }
 
 /* ==========================================
    Anzeige-Seite Spezifische Stile

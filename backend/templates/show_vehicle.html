@@ -47,7 +47,8 @@
                         <span class="marker-function {% if vehicle.funktion == 'Arzt' %}arzt
                            {% elif vehicle.funktion == 'Pflegekraft' %}pflege
                            {% elif vehicle.funktion == 'Honorararzt' %}honorar
-                           {% elif vehicle.funktion == 'Physiotherapie' %}physio{% endif %}">
+                           {% elif vehicle.funktion == 'Physiotherapie' %}physio
+                           {% elif vehicle.funktion == 'PDL' %}pdl{% endif %}">
                             {{ vehicle.funktion }}
                         </span>
                     </td>

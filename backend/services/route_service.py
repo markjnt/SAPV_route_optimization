@@ -79,7 +79,7 @@ class RouteOptimizationService:
         # Gibt die Dauer in Sekunden für einen Besuchstyp zurück
         durations = {
             "HB": 1200,  # 20 min
-            "Neuaufnahme": 7200  # 120 min
+            "NA": 7200  # 120 min
         }
         return durations.get(visit_type, 0)
 

@@ -10,7 +10,7 @@ let optimized_routes = [];      // Optimierte Routen
 // Konstanten für Verweilzeiten
 const VISIT_DWELL_TIMES = {
     'HB': 20 * 60,          // 20 Minuten in Sekunden
-    'Neuaufnahme': 120 * 60 // 120 Minuten in Sekunden
+    'NA': 120 * 60 // 120 Minuten in Sekunden
 };
 
 // Feste Farbpalette (30 gut unterscheidbare Farben)
@@ -100,7 +100,7 @@ async function loadMarkers(existingRoutesData = null) {
                     <div class="marker-visit-type ${
                         p.visit_type === 'HB' ? 'hb' : 
                         p.visit_type === 'TK' ? 'tk' : 
-                        p.visit_type === 'Neuaufnahme' ? 'neuaufnahme' : ''
+                        p.visit_type === 'NA' ? 'na' : ''
                     }">${p.visit_type}</div>
                     <div class="marker-address">${p.start_address || p.address}</div>
                 </div>
@@ -125,7 +125,7 @@ async function loadMarkers(existingRoutesData = null) {
                     scale: 10,
                     fillColor: p.visit_type === 'HB' ? '#00ff00' :
                                p.visit_type === 'TK' ? '#007efc' :
-                               p.visit_type === 'Neuaufnahme' ? '#ff4400' :
+                               p.visit_type === 'NA' ? '#ff4400' :
                                '#FFFFFF',
                     fillOpacity: 1,
                     strokeWeight: 2,
@@ -156,7 +156,8 @@ async function loadMarkers(existingRoutesData = null) {
                         v.funktion === 'Arzt' ? 'arzt' : 
                         v.funktion === 'Pflegekraft' ? 'pflege' : 
                         v.funktion === 'Honorararzt' ? 'honorar' :
-                        v.funktion === 'Physiotherapie' ? 'physio' : ''
+                        v.funktion === 'Physiotherapie' ? 'physio' :
+                        v.funktion === 'PDL' ? 'pdl' : ''
                     }">${v.funktion || ''}</div>
                     <div class="marker-address">${v.start_address || v.address}</div>
                 </div>
@@ -175,8 +176,9 @@ async function loadMarkers(existingRoutesData = null) {
                     scale: 10,
                     fillColor: v.funktion === 'Arzt' ? '#FF0000' :
                                v.funktion === 'Pflegekraft' ? '#be00fe' :
-                               v.funktion === 'Honorararzt' ? '#FF0000' :
+                               v.funktion === 'Honorararzt' ? '#e08147' :
                                v.funktion === 'Physiotherapie' ? '#be00fe' :
+                               v.funktion === 'PDL' ? '#FF0000' :
                                '#666666',
                     fillOpacity: 1,
                     strokeWeight: 2,
@@ -388,7 +390,8 @@ function displayRoutes(data) {
                     route.funktion === 'Arzt' ? 'arzt' : 
                     route.funktion === 'Pflegekraft' ? 'pflege' : 
                     route.funktion === 'Honorararzt' ? 'honorar' :
-                    route.funktion === 'Physiotherapie' ? 'physio' : ''
+                    route.funktion === 'Physiotherapie' ? 'physio' :
+                    route.funktion === 'PDL' ? 'pdl' : ''
                 }">${route.funktion || ''}</span>
             </div>
             <div class="duration" style="color: ${durationColor}">${route.duration_hrs || 0} / ${route.max_hours}h</div>
@@ -441,7 +444,7 @@ function displayRoutes(data) {
                     <div class="name-line ${
                         stop.visit_type === 'HB' ? 'hb' : 
                         stop.visit_type === 'TK' ? 'tk' : 
-                        stop.visit_type === 'Neuaufnahme' ? 'neuaufnahme' : ''
+                        stop.visit_type === 'NA' ? 'na' : ''
                     }">
                         <strong>${stop.patient}</strong>
                         <span class="visit-type">${stop.visit_type || ''}</span>

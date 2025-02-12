@@ -11,8 +11,8 @@ class FileService:
     def __init__(self):
         self.gmaps = googlemaps.Client(Config.GOOGLE_MAPS_API_KEY)
         self.ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
-        self.VALID_VISIT_TYPES = {'HB', 'TK', 'Neuaufnahme'}
-        self.VALID_FUNCTIONS = {'Arzt', 'Pflegekraft', 'Honorararzt', 'Physiotherapie'}
+        self.VALID_VISIT_TYPES = {'HB', 'TK', 'NA'}
+        self.VALID_FUNCTIONS = {'Arzt', 'Pflegekraft', 'Honorararzt', 'Physiotherapie', 'PDL'}
         self.WEEKDAY_MAPPING = {
             0: 'Montag',
             1: 'Dienstag',
@@ -47,7 +47,16 @@ class FileService:
         file.save(filepath)
         
         try:
-            df = pd.read_excel(filepath)
+            na_values = ['', '#N/A', '#N/A N/A', '#NA', '-1.#IND', '-1.#QNAN', 
+                                '-NaN', '-nan', '1.#IND', '1.#QNAN', '<NA>', 'N/A',
+                                'NULL', 'NaN', 'None', 'n/a', 'nan', 'null']
+            
+            df = pd.read_excel(
+                filepath,
+                keep_default_na=False,
+                na_values=na_values,
+                na_filter=True
+            )
             
             # Validiere Spalten
             if not self._validate_patient_columns(df):
@@ -193,7 +202,7 @@ class FileService:
         # Erstellt einen Patienten aus einer Excel-Zeile
         name = f"{row['Vorname']} {row['Nachname']}"
         address = f"{row['Strasse']}, {row['PLZ']} {row['Ort']}"
-        visit_type = row[weekday]
+        visit_type = row[weekday]   
         time_info = str(row.get(f"Uhrzeit/Info {weekday}", ""))
         time_info = "" if time_info.lower() == "nan" else time_info
         

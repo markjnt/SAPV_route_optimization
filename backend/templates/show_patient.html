@@ -39,7 +39,7 @@
                     <td style="white-space: pre-line">{{ patient.phone_numbers }}</td>
                     <td>{{ patient.time_info }}</td>
                     <td>
-                        <span class="visit-badge {% if patient.visit_type == 'HB' %}hb{% elif patient.visit_type == 'TK' %}tk{% elif patient.visit_type == 'Neuaufnahme' %}neuaufnahme{% endif %}">
+                        <span class="visit-badge {% if patient.visit_type == 'HB' %}hb{% elif patient.visit_type == 'TK' %}tk{% elif patient.visit_type == 'NA' %}na{% endif %}">
                             {{ patient.visit_type }}
                         </span>
                     </td>
