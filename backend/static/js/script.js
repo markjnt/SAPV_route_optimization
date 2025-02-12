@@ -9,7 +9,7 @@ let optimized_routes = [];      // Optimierte Routen
 
 // Konstanten für Verweilzeiten
 const VISIT_DWELL_TIMES = {
-    'HB': 20 * 60,          // 20 Minuten in Sekunden
+    'HB': 35 * 60,          // 35 Minuten in Sekunden
     'NA': 120 * 60 // 120 Minuten in Sekunden
 };
 
