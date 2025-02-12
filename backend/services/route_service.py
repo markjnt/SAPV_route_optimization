@@ -78,7 +78,7 @@ class RouteOptimizationService:
     def _get_visit_duration(self, visit_type):
         # Gibt die Dauer in Sekunden für einen Besuchstyp zurück
         durations = {
-            "HB": 35 * 60,  # 35 min
+            "HB": 25 * 60,  # 35 min
             "NA": 120 * 60  # 120 min
         }
         return durations.get(visit_type, 0)
